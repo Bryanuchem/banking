@@ -8,8 +8,9 @@ from sqlalchemy.engine import URL
 class Settings(BaseSettings):
     """Bootstrap/infrastructure configuration only.
 
-    Product/runtime configuration such as SMTP, OTP policy, branding and auth
-    policy is stored in the database-backed settings system.
+    Runtime product policy belongs in the database-backed settings system.
+    Secrets needed before the database can be trusted, such as the application
+    signing key and internal service token, remain environment-backed.
     """
 
     model_config = SettingsConfigDict(
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     app_secret_key: str = Field(default="change-me", repr=False)
+    internal_service_token: str = Field(default="", repr=False)
 
     db_host: str = "localhost"
     db_port: int = 5432

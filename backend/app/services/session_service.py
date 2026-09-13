@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.constants.setting_key import SettingKeys
@@ -51,3 +51,12 @@ class SessionService:
     def revoke(db: Session, session: UserSession) -> None:
         session.revoked_at = datetime.now(UTC)
         db.commit()
+
+    @staticmethod
+    def revoke_all(db: Session, user_id: UUID) -> None:
+        now = datetime.now(UTC)
+        db.execute(
+            update(UserSession)
+            .where(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )

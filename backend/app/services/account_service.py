@@ -22,7 +22,7 @@ class AccountService:
 
     @classmethod
     def create_for_user(cls, db: Session, user: User) -> Account:
-        currency = SettingService.get_string(db, SettingKeys.PRIMARY_CURRENCY, "NGN")[:3].upper()
+        currency = SettingService.get_string(db, SettingKeys.PRIMARY_CURRENCY, "USD")[:3].upper()
         account = Account(
             user_id=user.id,
             account_number=cls._generate_account_number(db),

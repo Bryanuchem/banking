@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
+from secrets import compare_digest
 from uuid import UUID
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.settings import settings
 from app.database.dependencies import get_db
 from app.models.user import User
 from app.services.auth_service import AuthService
@@ -36,3 +38,19 @@ def get_current_user(
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User is no longer available.")
     return user
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Administrator access is required.")
+    return user
+
+
+def require_internal_service(
+    x_internal_service_token: str | None = Header(default=None, alias="X-Internal-Service-Token"),
+) -> None:
+    expected = settings.internal_service_token
+    if not expected:
+        raise HTTPException(status_code=503, detail="Internal service authentication is not configured.")
+    if not x_internal_service_token or not compare_digest(x_internal_service_token, expected):
+        raise HTTPException(status_code=401, detail="Invalid internal service credentials.")

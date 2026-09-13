@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.constants.setting_key import SettingKeys
 from app.database.dependencies import get_db
 from app.enums.otp_purpose import OtpPurpose
 from app.models.user import User
@@ -26,12 +27,17 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.otp_service import OtpService
+from app.services.rate_limit_service import RateLimitService
 from app.services.session_service import SessionService
 from app.services.two_factor_service import TwoFactorService
 from app.utils.security import hash_password, validate_password_policy
 from app.utils.tokens import create_step_up_token, decode_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 def _user_response(user: User) -> UserResponse:
@@ -49,21 +55,40 @@ def _user_response(user: User) -> UserResponse:
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> UserResponse:
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> UserResponse:
+    RateLimitService.check(
+        db, bucket="register", subject=_ip(request),
+        setting_key=SettingKeys.RATE_LIMIT_REGISTER_PER_MINUTE,
+        default_limit=5, window_seconds=60,
+    )
     user = AuthService.register(db, **payload.model_dump())
     return _user_response(user)
 
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
-    user, challenge = AuthService.begin_login(db, email=str(payload.email), password=payload.password)
+    normalized_email = str(payload.email).strip().lower()
+    RateLimitService.check(
+        db, bucket="login-ip", subject=_ip(request),
+        setting_key=SettingKeys.RATE_LIMIT_LOGIN_PER_MINUTE,
+        default_limit=5, window_seconds=60,
+    )
+    RateLimitService.check(
+        db, bucket="login-account", subject=normalized_email,
+        setting_key=SettingKeys.RATE_LIMIT_LOGIN_PER_MINUTE,
+        default_limit=5, window_seconds=60,
+    )
+    user, challenge = AuthService.begin_login(db, email=normalized_email, password=payload.password)
     if challenge:
+        db.commit()
         return LoginResponse(two_factor_required=True, challenge_token=challenge)
+
+    AuthService.record_successful_login(user, ip_address=_ip(request))
     _, token = SessionService.create(
         db,
         user_id=user.id,
         remember_me=payload.remember_me,
-        ip_address=request.client.host if request.client else None,
+        ip_address=_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.commit()
@@ -72,6 +97,11 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 @router.post("/login/2fa", response_model=LoginResponse)
 def login_two_factor(payload: LoginTwoFactorRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
+    RateLimitService.check(
+        db, bucket="login-2fa", subject=_ip(request),
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
     decoded = decode_token(payload.challenge_token, "login_2fa")
     if decoded is None:
         raise HTTPException(status_code=401, detail="Two-factor login challenge is invalid or expired.")
@@ -82,11 +112,12 @@ def login_two_factor(payload: LoginTwoFactorRequest, request: Request, db: Sessi
     user = AuthService.find_user_by_id(db, user_id)
     if user is None or not TwoFactorService.verify(db, user, payload.code):
         raise HTTPException(status_code=401, detail="Invalid two-factor authentication code.")
+    AuthService.record_successful_login(user, ip_address=_ip(request))
     _, token = SessionService.create(
         db,
         user_id=user.id,
         remember_me=payload.remember_me,
-        ip_address=request.client.host if request.client else None,
+        ip_address=_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.commit()
@@ -99,11 +130,7 @@ def me(user: User = Depends(get_current_user)) -> UserResponse:
 
 
 @router.post("/logout")
-def logout(
-    request: Request,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> dict[str, str]:
+def logout(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
     auth = request.headers.get("authorization", "")
     token = auth.split(" ", 1)[1] if " " in auth else ""
     payload = decode_token(token, "access")
@@ -119,7 +146,12 @@ def logout(
 
 
 @router.post("/email/send-verification")
-def send_verification(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
+def send_verification(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
+    RateLimitService.check(
+        db, bucket="email-verification", subject=str(user.id),
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
     if user.is_verified:
         return {"message": "Email is already verified."}
     code = OtpService.create(db, user_id=user.id, purpose=OtpPurpose.EMAIL_VERIFICATION.value)
@@ -129,8 +161,14 @@ def send_verification(user: User = Depends(get_current_user), db: Session = Depe
 
 
 @router.post("/email/verify")
-def verify_email(payload: VerifyOtpRequest, db: Session = Depends(get_db)) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == str(payload.email).strip().lower()))
+def verify_email(payload: VerifyOtpRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    email = str(payload.email).strip().lower()
+    RateLimitService.check(
+        db, bucket="email-verify", subject=f"{_ip(request)}:{email}",
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
+    user = db.scalar(select(User).where(User.email == email))
     if user is None:
         raise HTTPException(status_code=400, detail="Invalid verification request.")
     OtpService.verify(db, user_id=user.id, purpose=OtpPurpose.EMAIL_VERIFICATION.value, code=payload.code)
@@ -140,8 +178,19 @@ def verify_email(payload: VerifyOtpRequest, db: Session = Depends(get_db)) -> di
 
 
 @router.post("/password/forgot")
-def forgot_password(payload: EmailOnlyRequest, db: Session = Depends(get_db)) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == str(payload.email).strip().lower()))
+def forgot_password(payload: EmailOnlyRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    email = str(payload.email).strip().lower()
+    RateLimitService.check(
+        db, bucket="forgot-ip", subject=_ip(request),
+        setting_key=SettingKeys.RATE_LIMIT_FORGOT_PASSWORD_PER_15_MINUTES,
+        default_limit=3, window_seconds=900,
+    )
+    RateLimitService.check(
+        db, bucket="forgot-account", subject=email,
+        setting_key=SettingKeys.RATE_LIMIT_FORGOT_PASSWORD_PER_15_MINUTES,
+        default_limit=3, window_seconds=900,
+    )
+    user = db.scalar(select(User).where(User.email == email))
     if user is not None and user.is_active:
         code = OtpService.create(db, user_id=user.id, purpose=OtpPurpose.PASSWORD_RESET.value)
         try:
@@ -154,8 +203,14 @@ def forgot_password(payload: EmailOnlyRequest, db: Session = Depends(get_db)) ->
 
 
 @router.post("/password/verify")
-def verify_password_code(payload: VerifyOtpRequest, db: Session = Depends(get_db)) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == str(payload.email).strip().lower()))
+def verify_password_code(payload: VerifyOtpRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    email = str(payload.email).strip().lower()
+    RateLimitService.check(
+        db, bucket="password-verify", subject=f"{_ip(request)}:{email}",
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
+    user = db.scalar(select(User).where(User.email == email))
     if user is None:
         raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
     OtpService.verify(db, user_id=user.id, purpose=OtpPurpose.PASSWORD_RESET.value, code=payload.code, consume=False)
@@ -163,8 +218,14 @@ def verify_password_code(payload: VerifyOtpRequest, db: Session = Depends(get_db
 
 
 @router.post("/password/reset")
-def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == str(payload.email).strip().lower()))
+def reset_password(payload: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    email = str(payload.email).strip().lower()
+    RateLimitService.check(
+        db, bucket="password-reset", subject=f"{_ip(request)}:{email}",
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
+    user = db.scalar(select(User).where(User.email == email))
     if user is None:
         raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
     OtpService.verify(db, user_id=user.id, purpose=OtpPurpose.PASSWORD_RESET.value, code=payload.code)
@@ -173,8 +234,11 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     user.password_hash = hash_password(payload.new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    SessionService.revoke_all(db, user.id)
     db.commit()
-    return {"message": "Password changed successfully."}
+    return {"message": "Password changed successfully. Existing sessions have been revoked."}
 
 
 @router.post("/2fa/setup", response_model=TwoFactorSetupResponse)
@@ -185,32 +249,35 @@ def setup_two_factor(user: User = Depends(get_current_user), db: Session = Depen
 
 
 @router.post("/2fa/confirm", response_model=TwoFactorConfirmResponse)
-def confirm_two_factor(
-    payload: TwoFactorCodeRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> TwoFactorConfirmResponse:
+def confirm_two_factor(payload: TwoFactorCodeRequest, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> TwoFactorConfirmResponse:
+    RateLimitService.check(
+        db, bucket="2fa-confirm", subject=str(user.id),
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
     recovery_codes = TwoFactorService.confirm_setup(db, user, payload.code)
     db.commit()
     return TwoFactorConfirmResponse(recovery_codes=recovery_codes)
 
 
 @router.post("/2fa/disable")
-def disable_two_factor(
-    payload: TwoFactorCodeRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> dict[str, str]:
+def disable_two_factor(payload: TwoFactorCodeRequest, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
+    RateLimitService.check(
+        db, bucket="2fa-disable", subject=str(user.id),
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
     TwoFactorService.disable(db, user, payload.code)
     return {"message": "Two-factor authentication disabled."}
 
 
 @router.post("/2fa/authorize", response_model=StepUpResponse)
-def authorize_sensitive_action(
-    payload: StepUpRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> StepUpResponse:
+def authorize_sensitive_action(payload: StepUpRequest, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> StepUpResponse:
+    RateLimitService.check(
+        db, bucket="2fa-authorize", subject=str(user.id),
+        setting_key=SettingKeys.RATE_LIMIT_OTP_PER_10_MINUTES,
+        default_limit=5, window_seconds=600,
+    )
     config = TwoFactorService.get_config(db, user.id)
     if config and config.enabled:
         if not TwoFactorService.verify(db, user, payload.code):

@@ -1,0 +1,9 @@
+Add this field to app/core/settings.py Settings:
+
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+And this property:
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -10,7 +11,6 @@ from app.models.user import User
 from app.services.account_service import AccountService
 from app.services.email_service import EmailService
 from app.services.otp_service import OtpService
-from app.services.session_service import SessionService
 from app.services.setting_service import SettingService
 from app.services.two_factor_service import TwoFactorService
 from app.utils.security import hash_password, validate_password_policy, verify_password
@@ -60,12 +60,36 @@ class AuthService:
     @classmethod
     def authenticate_password(cls, db: Session, *, email: str, password: str) -> User:
         user = db.scalar(select(User).where(User.email == cls._normalize_email(email)))
+        now = datetime.now(UTC)
+
+        if user is not None and user.locked_until is not None:
+            if user.locked_until > now:
+                retry_after = max(1, int((user.locked_until - now).total_seconds()))
+                raise HTTPException(
+                    status_code=423,
+                    detail="Account is temporarily locked due to repeated failed login attempts.",
+                    headers={"Retry-After": str(retry_after)},
+                )
+            user.locked_until = None
+            user.failed_login_attempts = 0
+
         if user is None or not verify_password(password, user.password_hash):
+            if user is not None:
+                user.failed_login_attempts += 1
+                max_attempts = SettingService.get_integer(db, SettingKeys.MAX_LOGIN_ATTEMPTS, 5)
+                if max_attempts > 0 and user.failed_login_attempts >= max_attempts:
+                    lock_minutes = SettingService.get_integer(db, SettingKeys.LOGIN_LOCKOUT_MINUTES, 15)
+                    user.locked_until = now + timedelta(minutes=max(1, lock_minutes))
+                db.commit()
             raise HTTPException(status_code=401, detail="Invalid email or password.")
+
         if not user.is_active:
             raise HTTPException(status_code=403, detail="This account is disabled.")
         if SettingService.get_boolean(db, SettingKeys.EMAIL_VERIFICATION_REQUIRED, False) and not user.is_verified:
             raise HTTPException(status_code=403, detail="Email verification is required.")
+
+        user.failed_login_attempts = 0
+        user.locked_until = None
         return user
 
     @classmethod
@@ -75,6 +99,13 @@ class AuthService:
         if config and config.enabled:
             return user, create_login_challenge_token(user_id=user.id)
         return user, None
+
+    @staticmethod
+    def record_successful_login(user: User, *, ip_address: str | None) -> None:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.last_login_at = datetime.now(UTC)
+        user.last_login_ip = ip_address
 
     @staticmethod
     def find_user_by_id(db: Session, user_id: UUID) -> User | None:
