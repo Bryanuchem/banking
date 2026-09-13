@@ -1,12 +1,14 @@
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.constants.setting_key import SettingKeys
 from app.database.dependencies import get_db
+from app.enums.payment_provider import PaymentProvider
 from app.models.ledger_entry import LedgerEntry
 from app.models.transaction import Transaction
 from app.models.user import User
@@ -17,6 +19,7 @@ from app.schemas.money import (
     TransactionHistoryItem,
     TransferRequest,
     TransferResponse,
+    WithdrawalQuoteResponse,
     WithdrawalRequest,
     WithdrawalResponse,
 )
@@ -119,17 +122,44 @@ def create_transfer(
 def transaction_history(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    transaction_type: str | None = Query(default=None, alias="type"),
+    status: str | None = Query(default=None),
+    direction: str | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=120),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[TransactionHistoryItem]:
-    rows = db.execute(
+    statement = (
         select(LedgerEntry, Transaction)
         .join(Transaction, Transaction.id == LedgerEntry.transaction_id)
         .where(LedgerEntry.account_id == user.account.id)
+    )
+
+    if transaction_type:
+        statement = statement.where(Transaction.type == transaction_type)
+
+    if status:
+        statement = statement.where(Transaction.status == status)
+
+    if direction:
+        statement = statement.where(LedgerEntry.entry_type == direction)
+
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                Transaction.reference.ilike(term),
+                Transaction.description.ilike(term),
+            )
+        )
+
+    rows = db.execute(
+        statement
         .order_by(LedgerEntry.created_at.desc())
         .offset(offset)
         .limit(limit)
     ).all()
+
     return [
         TransactionHistoryItem(
             id=transaction.id,
@@ -145,6 +175,65 @@ def transaction_history(
         )
         for entry, transaction in rows
     ]
+
+
+@router.get(
+    "/transactions/{transaction_id}",
+    response_model=TransactionHistoryItem,
+)
+def transaction_detail(
+    transaction_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TransactionHistoryItem:
+    row = db.execute(
+        select(LedgerEntry, Transaction)
+        .join(Transaction, Transaction.id == LedgerEntry.transaction_id)
+        .where(
+            LedgerEntry.account_id == user.account.id,
+            Transaction.id == transaction_id,
+        )
+    ).first()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found.",
+        )
+
+    entry, transaction = row
+
+    return TransactionHistoryItem(
+        id=transaction.id,
+        reference=transaction.reference,
+        type=transaction.type,
+        direction=entry.entry_type,
+        amount=entry.amount,
+        currency=transaction.currency,
+        status=transaction.status,
+        description=transaction.description,
+        balance_after=entry.balance_after,
+        created_at=entry.created_at,
+    )
+
+
+@router.get(
+    "/withdrawals/quote",
+    response_model=WithdrawalQuoteResponse,
+)
+def withdrawal_quote(
+    amount: Decimal = Query(gt=0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> WithdrawalQuoteResponse:
+    normalized = amount.quantize(Decimal("0.01"))
+    fee = WithdrawalService.calculate_fee(db, normalized)
+    return WithdrawalQuoteResponse(
+        amount=normalized,
+        fee_amount=fee,
+        currency=user.account.currency,
+        recipient_receives=normalized,
+    )
 
 
 @router.post("/withdrawals", response_model=WithdrawalResponse, status_code=201)
@@ -200,9 +289,44 @@ def list_withdrawals(
     return [_withdrawal_response(item) for item in items]
 
 
+@router.get(
+    "/withdrawals/{withdrawal_id}",
+    response_model=WithdrawalResponse,
+)
+def get_withdrawal(
+    withdrawal_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> WithdrawalResponse:
+    item = db.scalar(
+        select(Withdrawal).where(
+            Withdrawal.id == withdrawal_id,
+            Withdrawal.user_id == user.id,
+        )
+    )
+    if item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Withdrawal not found.",
+        )
+    return _withdrawal_response(item)
+
+
+@router.get(
+    "/payments/providers",
+    response_model=list[PaymentProvider],
+)
+def payment_providers(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[PaymentProvider]:
+    return PaymentService.available_providers(db)
+
+
 @router.post("/withdrawals/{withdrawal_id}/fee-payment", response_model=PaymentCheckoutResponse, status_code=201)
 def initialize_withdrawal_fee_payment(
     withdrawal_id: UUID,
+    provider: PaymentProvider | None = Query(default=None),
     x_step_up_authorization: str | None = Header(default=None, alias="X-Step-Up-Authorization"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -219,7 +343,10 @@ def initialize_withdrawal_fee_payment(
         required_scope="payment:create",
     )
     payment, checkout = PaymentService.initialize_withdrawal_fee(
-        db, user=user, withdrawal_id=withdrawal_id
+        db,
+        user=user,
+        withdrawal_id=withdrawal_id,
+        provider_name=provider,
     )
     db.commit()
     db.refresh(payment)

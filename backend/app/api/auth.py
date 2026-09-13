@@ -8,19 +8,25 @@ from app.api.dependencies import get_current_user
 from app.constants.setting_key import SettingKeys
 from app.database.dependencies import get_db
 from app.enums.otp_purpose import OtpPurpose
+from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.schemas.auth import (
     EmailOnlyRequest,
     LoginRequest,
     LoginResponse,
+    ChangePasswordRequest,
     LoginTwoFactorRequest,
     RegisterRequest,
+    ProfileUpdateRequest,
     ResetPasswordRequest,
+    SecurityActivityItem,
     StepUpRequest,
     StepUpResponse,
     TwoFactorCodeRequest,
     TwoFactorConfirmResponse,
     TwoFactorSetupResponse,
+    TwoFactorStatusResponse,
+    UserSessionResponse,
     UserResponse,
     VerifyOtpRequest,
 )
@@ -30,7 +36,7 @@ from app.services.otp_service import OtpService
 from app.services.rate_limit_service import RateLimitService
 from app.services.session_service import SessionService
 from app.services.two_factor_service import TwoFactorService
-from app.utils.security import hash_password, validate_password_policy
+from app.utils.security import hash_password, validate_password_policy, verify_password
 from app.utils.tokens import create_step_up_token, decode_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -256,6 +262,12 @@ def confirm_two_factor(payload: TwoFactorCodeRequest, request: Request, user: Us
         default_limit=5, window_seconds=600,
     )
     recovery_codes = TwoFactorService.confirm_setup(db, user, payload.code)
+    _audit_security(
+        db,
+        user=user,
+        action="2fa.enabled",
+        request=request,
+    )
     db.commit()
     return TwoFactorConfirmResponse(recovery_codes=recovery_codes)
 
@@ -268,6 +280,13 @@ def disable_two_factor(payload: TwoFactorCodeRequest, request: Request, user: Us
         default_limit=5, window_seconds=600,
     )
     TwoFactorService.disable(db, user, payload.code)
+    _audit_security(
+        db,
+        user=user,
+        action="2fa.disabled",
+        request=request,
+    )
+    db.commit()
     return {"message": "Two-factor authentication disabled."}
 
 
@@ -285,3 +304,321 @@ def authorize_sensitive_action(payload: StepUpRequest, request: Request, user: U
         db.commit()
     token = create_step_up_token(user_id=user.id, scope=payload.scope)
     return StepUpResponse(authorization_token=token, scope=payload.scope)
+
+
+def _session_id_from_request(request: Request) -> UUID | None:
+    auth = request.headers.get("authorization", "")
+    token = auth.split(" ", 1)[1] if " " in auth else ""
+    payload = decode_token(token, "access")
+    if not payload:
+        return None
+    try:
+        return UUID(str(payload["sid"]))
+    except (KeyError, ValueError):
+        return None
+
+
+def _audit_security(
+    db: Session,
+    *,
+    user: User,
+    action: str,
+    request: Request,
+    details: dict | None = None,
+) -> None:
+    db.add(
+        AuditLog(
+            user_id=user.id,
+            action=action,
+            entity_type="security",
+            entity_id=user.id,
+            ip_address=_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            details=details,
+        )
+    )
+
+
+@router.patch("/profile", response_model=UserResponse)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    phone = payload.phone.strip() if payload.phone else None
+    if phone:
+        existing = db.scalar(
+            select(User).where(
+                User.phone == phone,
+                User.id != user.id,
+            )
+        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="That phone number is already in use.",
+            )
+
+    user.first_name = payload.first_name.strip()
+    user.last_name = payload.last_name.strip()
+    user.phone = phone
+    _audit_security(
+        db,
+        user=user,
+        action="profile.updated",
+        request=request,
+    )
+    db.commit()
+    db.refresh(user)
+    return _user_response(user)
+
+
+@router.post("/password/change")
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not verify_password(
+        payload.current_password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect.",
+        )
+
+    try:
+        validate_password_policy(db, payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    if verify_password(
+        payload.new_password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from your current password.",
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+
+    current_session_id = _session_id_from_request(request)
+    if current_session_id is not None:
+        SessionService.revoke_others(
+            db,
+            user_id=user.id,
+            current_session_id=current_session_id,
+        )
+
+    _audit_security(
+        db,
+        user=user,
+        action="password.changed",
+        request=request,
+    )
+    db.commit()
+    return {
+        "message": "Password changed. Other sessions have been signed out."
+    }
+
+
+@router.get("/2fa/status", response_model=TwoFactorStatusResponse)
+def two_factor_status(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TwoFactorStatusResponse:
+    config = TwoFactorService.get_config(db, user.id)
+    enabled = bool(config and config.enabled)
+    remaining = (
+        TwoFactorService.recovery_code_count(db, user.id)
+        if enabled
+        else 0
+    )
+    return TwoFactorStatusResponse(
+        enabled=enabled,
+        recovery_codes_remaining=remaining,
+    )
+
+
+@router.post(
+    "/2fa/recovery-codes",
+    response_model=TwoFactorConfirmResponse,
+)
+def regenerate_recovery_codes(
+    payload: TwoFactorCodeRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TwoFactorConfirmResponse:
+    codes = TwoFactorService.regenerate_recovery_codes(
+        db,
+        user,
+        payload.code,
+    )
+    _audit_security(
+        db,
+        user=user,
+        action="2fa.recovery_codes_regenerated",
+        request=request,
+    )
+    db.commit()
+    return TwoFactorConfirmResponse(recovery_codes=codes)
+
+
+@router.get(
+    "/sessions",
+    response_model=list[UserSessionResponse],
+)
+def list_sessions(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[UserSessionResponse]:
+    current_id = _session_id_from_request(request)
+    return [
+        UserSessionResponse(
+            id=item.id,
+            current=item.id == current_id,
+            user_agent=item.user_agent,
+            ip_address=item.ip_address,
+            last_seen_at=(
+                item.last_seen_at.isoformat()
+                if item.last_seen_at
+                else None
+            ),
+            created_at=item.created_at.isoformat(),
+            expires_at=item.expires_at.isoformat(),
+        )
+        for item in SessionService.list_active(db, user.id)
+    ]
+
+
+@router.delete("/sessions/{session_id}")
+def revoke_session(
+    session_id: UUID,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    current_id = _session_id_from_request(request)
+    if current_id == session_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Use Sign out to end your current session.",
+        )
+
+    changed = SessionService.revoke_by_id(
+        db,
+        user_id=user.id,
+        session_id=session_id,
+    )
+    if not changed:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found.",
+        )
+
+    _audit_security(
+        db,
+        user=user,
+        action="session.revoked",
+        request=request,
+        details={"session_id": str(session_id)},
+    )
+    db.commit()
+    return {"message": "Session signed out."}
+
+
+@router.delete("/sessions")
+def revoke_other_sessions(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    current_id = _session_id_from_request(request)
+    if current_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Current session could not be identified.",
+        )
+
+    count = SessionService.revoke_others(
+        db,
+        user_id=user.id,
+        current_session_id=current_id,
+    )
+    _audit_security(
+        db,
+        user=user,
+        action="sessions.revoked_others",
+        request=request,
+        details={"count": count},
+    )
+    db.commit()
+    return {
+        "message": "Other sessions signed out.",
+        "count": count,
+    }
+
+
+@router.get(
+    "/security/activity",
+    response_model=list[SecurityActivityItem],
+)
+def security_activity(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[SecurityActivityItem]:
+    audit_rows = db.scalars(
+        select(AuditLog)
+        .where(
+            AuditLog.user_id == user.id,
+            AuditLog.entity_type == "security",
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(30)
+    ).all()
+
+    labels = {
+        "profile.updated": "Profile updated",
+        "password.changed": "Password changed",
+        "2fa.recovery_codes_regenerated": "Recovery codes regenerated",
+        "session.revoked": "Session signed out",
+        "sessions.revoked_others": "Other sessions signed out",
+    }
+
+    items = [
+        SecurityActivityItem(
+            id=str(row.id),
+            event=labels.get(row.action, row.action),
+            details=None,
+            created_at=row.created_at.isoformat(),
+        )
+        for row in audit_rows
+    ]
+
+    for session in SessionService.list_active(db, user.id)[:10]:
+        items.append(
+            SecurityActivityItem(
+                id=f"session-{session.id}",
+                event="Active sign-in",
+                details=session.user_agent,
+                created_at=(
+                    session.last_seen_at
+                    or session.created_at
+                ).isoformat(),
+            )
+        )
+
+    return sorted(
+        items,
+        key=lambda item: item.created_at,
+        reverse=True,
+    )[:30]

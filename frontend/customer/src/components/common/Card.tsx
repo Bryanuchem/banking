@@ -8,7 +8,10 @@ export default function Card({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("border p-4 sm:p-5", className)}
+      className={cn(
+        "border p-4 sm:p-5 lg:p-6",
+        className,
+      )}
       style={{
         background: "var(--surface)",
         borderColor: "var(--border)",

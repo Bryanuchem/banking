@@ -32,7 +32,7 @@ export default function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-center text-xs font-medium",
         className,
       )}
       style={{

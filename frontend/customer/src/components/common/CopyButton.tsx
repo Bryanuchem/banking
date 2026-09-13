@@ -1,36 +1,78 @@
-import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import {
+  Check,
+  Copy,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
-type CopyButtonProps = {
+import { useSnackbar } from "@/context/SnackbarContext";
+import { cn } from "@/utils/cn";
+
+type Props = {
   value: string;
   label?: string;
+  successMessage?: string;
+  className?: string;
 };
 
 export default function CopyButton({
   value,
   label = "Copy",
-}: CopyButtonProps) {
+  successMessage = "Copied to clipboard.",
+  className,
+}: Props) {
+  const snackbar = useSnackbar();
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (!copied) return;
+
+    const timeout = window.setTimeout(
+      () => setCopied(false),
+      1800,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
   async function handleCopy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      snackbar.success(successMessage);
+    } catch {
+      snackbar.error(
+        "Could not copy to your clipboard.",
+      );
+    }
   }
 
   return (
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-xs font-medium transition"
-      style={{
-        color: copied ? "var(--success)" : "var(--muted)",
-        background: "var(--surface-alt)",
-      }}
       aria-label={`${label}: ${value}`}
+      title={copied ? "Copied" : label}
+      className={cn(
+        `
+          grid size-8 shrink-0 place-items-center
+          rounded-lg transition
+          hover:bg-[var(--surface-alt)]
+          focus-visible:outline-none focus-visible:ring-2
+          focus-visible:ring-[var(--brand-accent)]
+        `,
+        className,
+      )}
+      style={{
+        color: copied
+          ? "var(--success)"
+          : "var(--muted)",
+      }}
     >
-      {copied ? <Check size={15} /> : <Copy size={15} />}
-      <span>{copied ? "Copied" : label}</span>
+      {copied ? (
+        <Check size={16} strokeWidth={2} />
+      ) : (
+        <Copy size={16} strokeWidth={1.8} />
+      )}
     </button>
   );
 }

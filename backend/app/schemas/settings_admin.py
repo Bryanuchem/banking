@@ -11,6 +11,8 @@ class AdminSettingItem(BaseModel):
     is_secret: bool
     configured: bool
     value: Any | None
+    description: str | None = None
+    formula: str | None = None
 
 
 class AdminSettingUpdateRequest(BaseModel):

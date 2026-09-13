@@ -12,6 +12,7 @@ from app.database.base import Base
 from app.enums.account_status import AccountStatus
 
 if TYPE_CHECKING:
+    from app.models.deposit import Deposit
     from app.models.ledger_entry import LedgerEntry
     from app.models.transfer import Transfer
     from app.models.user import User
@@ -55,3 +56,4 @@ class Account(Base):
         back_populates="recipient_account", foreign_keys="Transfer.recipient_account_id"
     )
     withdrawals: Mapped[list["Withdrawal"]] = relationship(back_populates="account")
+    deposits: Mapped[list["Deposit"]] = relationship(back_populates="account")

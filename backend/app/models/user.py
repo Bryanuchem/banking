@@ -12,6 +12,7 @@ from app.database.base import Base
 if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.audit_log import AuditLog
+    from app.models.deposit import Deposit
     from app.models.otp_code import OtpCode
     from app.models.payment import Payment
     from app.models.two_factor_recovery_code import TwoFactorRecoveryCode
@@ -53,5 +54,6 @@ class User(Base):
     otp_codes: Mapped[list["OtpCode"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     withdrawals: Mapped[list["Withdrawal"]] = relationship(back_populates="user")
+    deposits: Mapped[list["Deposit"]] = relationship(back_populates="user")
     payments: Mapped[list["Payment"]] = relationship(back_populates="user")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")

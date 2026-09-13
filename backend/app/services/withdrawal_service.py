@@ -35,12 +35,33 @@ class WithdrawalService:
 
     @classmethod
     def calculate_fee(cls, db: Session, amount: Decimal) -> Decimal:
-        if not SettingService.get_boolean(db, SettingKeys.WITHDRAWAL_FEE_ENABLED, False):
-            return Decimal("0.00")
-        flat = cls._decimal_setting(db, SettingKeys.WITHDRAWAL_FEE_FLAT)
-        percent = cls._decimal_setting(db, SettingKeys.WITHDRAWAL_FEE_PERCENT)
-        percentage_fee = (amount * percent / Decimal("100")).quantize(MONEY, rounding=ROUND_HALF_UP)
-        return max(Decimal("0.00"), flat + percentage_fee).quantize(MONEY)
+        if amount <= Decimal("0.00"):
+            raise HTTPException(
+                status_code=400,
+                detail="Withdrawal amount must be greater than zero.",
+            )
+
+        percent = cls._decimal_setting(
+            db,
+            SettingKeys.WITHDRAWAL_FEE_PERCENT,
+            default="1.00",
+        )
+        if percent <= Decimal("0.00"):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Withdrawal fee is not configured. "
+                    "Set withdrawal_fee_percent to a value greater than zero."
+                ),
+            )
+
+        percentage_fee = (
+            amount * percent / Decimal("100")
+        ).quantize(MONEY, rounding=ROUND_HALF_UP)
+
+        # The fee is required. For very small amounts/percentages, protect
+        # against currency rounding producing a zero fee.
+        return max(MONEY, percentage_fee)
 
     @classmethod
     def create_request(
@@ -88,11 +109,9 @@ class WithdrawalService:
             raise HTTPException(status_code=400, detail="Insufficient available balance.")
 
         fee = cls.calculate_fee(db, amount)
-        status = (
-            WithdrawalStatus.AWAITING_FEE.value
-            if fee > Decimal("0.00")
-            else WithdrawalStatus.PENDING_REVIEW.value
-        )
+        # Every withdrawal requires its separately-paid processing fee
+        # before it can enter review.
+        status = WithdrawalStatus.AWAITING_FEE.value
 
         account.available_balance -= amount
         account.held_balance += amount

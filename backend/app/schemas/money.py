@@ -79,3 +79,10 @@ class WithdrawalResponse(BaseModel):
     destination_account_name: str
     status: str
     created_at: datetime
+
+
+class WithdrawalQuoteResponse(BaseModel):
+    amount: Decimal
+    fee_amount: Decimal
+    currency: str
+    recipient_receives: Decimal

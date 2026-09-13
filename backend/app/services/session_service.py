@@ -52,6 +52,50 @@ class SessionService:
         session.revoked_at = datetime.now(UTC)
         db.commit()
 
+
+@staticmethod
+def list_active(db: Session, user_id: UUID) -> list[UserSession]:
+    now = datetime.now(UTC)
+    return list(
+        db.scalars(
+            select(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > now,
+            )
+            .order_by(UserSession.last_seen_at.desc().nullslast(), UserSession.created_at.desc())
+        ).all()
+    )
+
+@staticmethod
+def revoke_by_id(db: Session, *, user_id: UUID, session_id: UUID) -> bool:
+    session = db.scalar(
+        select(UserSession).where(
+            UserSession.id == session_id,
+            UserSession.user_id == user_id,
+        )
+    )
+    if session is None or session.revoked_at is not None:
+        return False
+    session.revoked_at = datetime.now(UTC)
+    db.flush()
+    return True
+
+@staticmethod
+def revoke_others(db: Session, *, user_id: UUID, current_session_id: UUID) -> int:
+    now = datetime.now(UTC)
+    result = db.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == user_id,
+            UserSession.id != current_session_id,
+            UserSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    return int(result.rowcount or 0)
+
     @staticmethod
     def revoke_all(db: Session, user_id: UUID) -> None:
         now = datetime.now(UTC)

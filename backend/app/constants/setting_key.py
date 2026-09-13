@@ -7,6 +7,62 @@ class SettingKeys:
     PRIMARY_CURRENCY = "primary_currency"
     SUPPORT_EMAIL = "support_email"
     SUPPORT_PHONE = "support_phone"
+    BRAND_TAGLINE = "brand_tagline"
+
+    # Public landing page
+    LANDING_EYEBROW = "landing_eyebrow"
+    LANDING_TITLE = "landing_title"
+    LANDING_DESCRIPTION = "landing_description"
+    LANDING_PRIMARY_CTA_LABEL = "landing_primary_cta_label"
+    LANDING_SECONDARY_CTA_LABEL = "landing_secondary_cta_label"
+    LANDING_FEATURE_1_TITLE = "landing_feature_1_title"
+    LANDING_FEATURE_1_DESCRIPTION = "landing_feature_1_description"
+    LANDING_FEATURE_2_TITLE = "landing_feature_2_title"
+    LANDING_FEATURE_2_DESCRIPTION = "landing_feature_2_description"
+    LANDING_FEATURE_3_TITLE = "landing_feature_3_title"
+    LANDING_FEATURE_3_DESCRIPTION = "landing_feature_3_description"
+
+    # Support
+    SUPPORT_WHATSAPP_URL = "support_whatsapp_url"
+    SUPPORT_TELEGRAM_URL = "support_telegram_url"
+    SUPPORT_HOURS = "support_hours"
+
+    # Social
+    SOCIAL_FACEBOOK_URL = "social_facebook_url"
+    SOCIAL_INSTAGRAM_URL = "social_instagram_url"
+    SOCIAL_X_URL = "social_x_url"
+    SOCIAL_LINKEDIN_URL = "social_linkedin_url"
+    SOCIAL_YOUTUBE_URL = "social_youtube_url"
+    SOCIAL_TIKTOK_URL = "social_tiktok_url"
+    SOCIAL_DISCORD_URL = "social_discord_url"
+
+    # Branding - light theme
+    BRAND_LIGHT_PRIMARY_COLOR = "brand_light_primary_color"
+    BRAND_LIGHT_SECONDARY_COLOR = "brand_light_secondary_color"
+    BRAND_LIGHT_ACCENT_COLOR = "brand_light_accent_color"
+    BRAND_LIGHT_BACKGROUND_COLOR = "brand_light_background_color"
+    BRAND_LIGHT_SURFACE_COLOR = "brand_light_surface_color"
+    BRAND_LIGHT_SURFACE_ALT_COLOR = "brand_light_surface_alt_color"
+    BRAND_LIGHT_TEXT_COLOR = "brand_light_text_color"
+    BRAND_LIGHT_MUTED_COLOR = "brand_light_muted_color"
+    BRAND_LIGHT_BORDER_COLOR = "brand_light_border_color"
+    BRAND_LIGHT_SUCCESS_COLOR = "brand_light_success_color"
+    BRAND_LIGHT_WARNING_COLOR = "brand_light_warning_color"
+    BRAND_LIGHT_DANGER_COLOR = "brand_light_danger_color"
+
+    # Branding - dark theme
+    BRAND_DARK_PRIMARY_COLOR = "brand_dark_primary_color"
+    BRAND_DARK_SECONDARY_COLOR = "brand_dark_secondary_color"
+    BRAND_DARK_ACCENT_COLOR = "brand_dark_accent_color"
+    BRAND_DARK_BACKGROUND_COLOR = "brand_dark_background_color"
+    BRAND_DARK_SURFACE_COLOR = "brand_dark_surface_color"
+    BRAND_DARK_SURFACE_ALT_COLOR = "brand_dark_surface_alt_color"
+    BRAND_DARK_TEXT_COLOR = "brand_dark_text_color"
+    BRAND_DARK_MUTED_COLOR = "brand_dark_muted_color"
+    BRAND_DARK_BORDER_COLOR = "brand_dark_border_color"
+    BRAND_DARK_SUCCESS_COLOR = "brand_dark_success_color"
+    BRAND_DARK_WARNING_COLOR = "brand_dark_warning_color"
+    BRAND_DARK_DANGER_COLOR = "brand_dark_danger_color"
 
     # Authentication
     REGISTRATION_ENABLED = "registration_enabled"
@@ -39,6 +95,9 @@ class SettingKeys:
     SMTP_USE_TLS = "smtp_use_tls"
 
     # Withdrawals
+    # WITHDRAWAL_FEE_ENABLED / WITHDRAWAL_FEE_FLAT are retained as legacy
+    # constants so older rows/scripts do not crash, but they no longer
+    # participate in fee calculation. The live product rule is percentage-only.
     WITHDRAWAL_FEE_ENABLED = "withdrawal_fee_enabled"
     WITHDRAWAL_FEE_FLAT = "withdrawal_fee_flat"
     WITHDRAWAL_FEE_PERCENT = "withdrawal_fee_percent"

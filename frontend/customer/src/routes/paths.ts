@@ -1,6 +1,8 @@
 export const ROUTES = {
-  dashboard: "/",
+  landing: "/",
+  dashboard: "/dashboard",
   login: "/login",
+  loginLocked: "/login/locked",
   register: "/register",
   forgotPassword: "/forgot-password",
   resetPassword: "/reset-password",
@@ -8,6 +10,13 @@ export const ROUTES = {
   transfer: "/transfer",
   activity: "/activity",
   withdraw: "/withdraw",
+  deposit: "/deposit",
   payments: "/payments",
   profile: "/profile",
+  security: "/security",
+  securityPassword: "/security/password",
+  securityTwoFactor: "/security/2fa",
+  securitySessions: "/security/sessions",
+  securityActivity: "/security/activity",
+  support: "/support",
 } as const;

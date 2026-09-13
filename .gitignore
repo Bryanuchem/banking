@@ -11,6 +11,7 @@ venv/
 # Environment / secrets
 .env
 backend/.env
+backend/.env.test
 
 # Node
 node_modules/

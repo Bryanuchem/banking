@@ -1,49 +1,90 @@
+import { AlertCircle } from "lucide-react";
 import type { ReactNode } from "react";
-import { CircleAlert } from "lucide-react";
 
-type ErrorStateProps = {
+import Button from "@/components/common/Button";
+
+export type ErrorStateProps = {
   title?: string;
   description?: string;
+  message?: string;
   action?: ReactNode;
+  actionLabel?: string;
+  retryLabel?: string;
+  onAction?: () => void;
+  onRetry?: () => void;
 };
 
 export default function ErrorState({
   title = "Something went wrong",
-  description = "We could not load this right now. Please try again.",
+  description,
+  message,
   action,
+  actionLabel,
+  retryLabel,
+  onAction,
+  onRetry,
 }: ErrorStateProps) {
+  const body = description ?? message;
+  const handler = onAction ?? onRetry;
+  const label =
+    actionLabel ??
+    retryLabel ??
+    (handler ? "Try again" : undefined);
+
   return (
     <div
-      role="alert"
-      className="flex min-h-56 flex-col items-center justify-center border px-6 py-10 text-center"
+      className="
+        rounded-[var(--radius-card)] border
+        px-5 py-8 text-center
+      "
       style={{
         background: "var(--surface)",
-        borderColor: "color-mix(in srgb, var(--danger) 28%, var(--border))",
-        borderRadius: "var(--radius-card)",
+        borderColor: "var(--border)",
       }}
     >
       <div
-        className="mb-4 grid size-11 place-items-center rounded-full"
+        className="
+          mx-auto grid size-11 place-items-center
+          rounded-2xl
+        "
         style={{
-          background: "color-mix(in srgb, var(--danger) 10%, transparent)",
           color: "var(--danger)",
+          background:
+            "color-mix(in srgb, var(--danger) 10%, var(--surface))",
         }}
       >
-        <CircleAlert size={20} strokeWidth={1.8} />
+        <AlertCircle size={21} />
       </div>
 
-      <h3 className="font-semibold" style={{ color: "var(--text)" }}>
+      <h3
+        className="mt-4 font-semibold"
+        style={{ color: "var(--text)" }}
+      >
         {title}
       </h3>
 
-      <p
-        className="mt-1 max-w-sm text-sm leading-6"
-        style={{ color: "var(--muted)" }}
-      >
-        {description}
-      </p>
+      {body ? (
+        <p
+          className="
+            mx-auto mt-2 max-w-md text-sm leading-6
+          "
+          style={{ color: "var(--muted)" }}
+        >
+          {body}
+        </p>
+      ) : null}
 
-      {action ? <div className="mt-5">{action}</div> : null}
+      {action ? (
+        <div className="mt-5">{action}</div>
+      ) : null}
+
+      {!action && handler && label ? (
+        <div className="mt-5">
+          <Button onClick={handler}>
+            {label}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

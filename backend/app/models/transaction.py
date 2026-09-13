@@ -42,3 +42,6 @@ class Transaction(Base):
     withdrawal: Mapped["Withdrawal | None"] = relationship(
         back_populates="transaction", uselist=False
     )
+    deposit: Mapped["Deposit | None"] = relationship(
+        back_populates="transaction", uselist=False
+    )

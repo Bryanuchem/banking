@@ -58,6 +58,12 @@ a {
   );
 }
 
+@media (min-width: 1024px) {
+  body {
+    min-height: 100dvh;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

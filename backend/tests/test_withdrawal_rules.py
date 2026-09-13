@@ -70,33 +70,81 @@ def make_user(*, user_id, admin: bool = False) -> User:
     )
 
 
-def test_withdrawal_fee_combines_flat_and_percentage(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        withdrawal_module.SettingService,
-        "get_boolean",
-        staticmethod(lambda db, key, default=False: True),
-    )
-    values = {
-        str(withdrawal_module.SettingKeys.WITHDRAWAL_FEE_FLAT): "2.50",
-        str(withdrawal_module.SettingKeys.WITHDRAWAL_FEE_PERCENT): "1.25",
-    }
+def test_withdrawal_fee_is_percentage_only(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         withdrawal_module.SettingService,
         "get_string",
-        staticmethod(lambda db, key, default="0.00": values[str(key)]),
+        staticmethod(
+            lambda db, key, default="1.00": "1.25"
+            if key == withdrawal_module.SettingKeys.WITHDRAWAL_FEE_PERCENT
+            else default
+        ),
     )
 
-    assert WithdrawalService.calculate_fee(object(), Decimal("100.00")) == Decimal("3.75")
+    assert WithdrawalService.calculate_fee(
+        object(),
+        Decimal("100.00"),
+    ) == Decimal("1.25")
 
 
-def test_withdrawal_fee_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_withdrawal_fee_rounds_to_currency_minor_unit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         withdrawal_module.SettingService,
-        "get_boolean",
-        staticmethod(lambda db, key, default=False: False),
+        "get_string",
+        staticmethod(
+            lambda db, key, default="1.00": "2.50"
+            if key == withdrawal_module.SettingKeys.WITHDRAWAL_FEE_PERCENT
+            else default
+        ),
     )
 
-    assert WithdrawalService.calculate_fee(object(), Decimal("100.00")) == Decimal("0.00")
+    assert WithdrawalService.calculate_fee(
+        object(),
+        Decimal("19.99"),
+    ) == Decimal("0.50")
+
+
+def test_withdrawal_fee_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        withdrawal_module.SettingService,
+        "get_string",
+        staticmethod(
+            lambda db, key, default="1.00": "0.00"
+            if key == withdrawal_module.SettingKeys.WITHDRAWAL_FEE_PERCENT
+            else default
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        WithdrawalService.calculate_fee(
+            object(),
+            Decimal("100.00"),
+        )
+
+    assert exc.value.status_code == 503
+
+
+def test_withdrawal_fee_never_rounds_to_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        withdrawal_module.SettingService,
+        "get_string",
+        staticmethod(
+            lambda db, key, default="1.00": "0.01"
+            if key == withdrawal_module.SettingKeys.WITHDRAWAL_FEE_PERCENT
+            else default
+        ),
+    )
+
+    assert WithdrawalService.calculate_fee(
+        object(),
+        Decimal("1.00"),
+    ) == Decimal("0.01")
 
 
 def test_user_cancel_releases_held_money(monkeypatch: pytest.MonkeyPatch) -> None:

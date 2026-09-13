@@ -38,3 +38,19 @@ class PaymentStatusResponse(BaseModel):
     channel: PaymentChannel | None = None
     provider_channel: str | None = None
     paid_at: datetime | None
+
+
+class PaymentHistoryResponse(BaseModel):
+    id: UUID
+    reference: str
+    amount: Decimal
+    currency: str
+    status: str
+    provider: PaymentProvider
+    channel: PaymentChannel | None = None
+    provider_channel: str | None = None
+    purpose: str
+    deposit_id: UUID | None = None
+    withdrawal_id: UUID | None = None
+    paid_at: datetime | None = None
+    created_at: datetime

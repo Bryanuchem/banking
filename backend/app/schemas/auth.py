@@ -84,3 +84,37 @@ class StepUpRequest(BaseModel):
 class StepUpResponse(BaseModel):
     authorization_token: str
     scope: str
+
+
+
+class ProfileUpdateRequest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=32)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class TwoFactorStatusResponse(BaseModel):
+    enabled: bool
+    recovery_codes_remaining: int
+
+
+class UserSessionResponse(BaseModel):
+    id: UUID
+    current: bool
+    user_agent: str | None
+    ip_address: str | None
+    last_seen_at: str | None
+    created_at: str
+    expires_at: str
+
+
+class SecurityActivityItem(BaseModel):
+    id: str
+    event: str
+    details: str | None = None
+    created_at: str

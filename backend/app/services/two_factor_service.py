@@ -77,6 +77,65 @@ class TwoFactorService:
                 return True
         return False
 
+
+@classmethod
+def recovery_code_count(cls, db: Session, user_id: UUID) -> int:
+    return len(
+        db.scalars(
+            select(TwoFactorRecoveryCode).where(
+                TwoFactorRecoveryCode.user_id == user_id,
+                TwoFactorRecoveryCode.used_at.is_(None),
+            )
+        ).all()
+    )
+
+@classmethod
+def regenerate_recovery_codes(
+    cls,
+    db: Session,
+    user: User,
+    code: str,
+) -> list[str]:
+    if not cls.verify(db, user, code):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid two-factor authentication code.",
+        )
+
+    config = cls.get_config(db, user.id)
+    if config is None or not config.enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="Two-factor authentication is not enabled.",
+        )
+
+    db.execute(
+        delete(TwoFactorRecoveryCode).where(
+            TwoFactorRecoveryCode.user_id == user.id
+        )
+    )
+    count = max(
+        5,
+        min(
+            20,
+            SettingService.get_integer(
+                db,
+                SettingKeys.TWO_FACTOR_RECOVERY_CODE_COUNT,
+                10,
+            ),
+        ),
+    )
+    codes = [secrets.token_hex(5).upper() for _ in range(count)]
+    for value in codes:
+        db.add(
+            TwoFactorRecoveryCode(
+                user_id=user.id,
+                code_hash=hash_password(value),
+            )
+        )
+    db.flush()
+    return codes
+
     @classmethod
     def disable(cls, db: Session, user: User, code: str) -> None:
         if not cls.verify(db, user, code):

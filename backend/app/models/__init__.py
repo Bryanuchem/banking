@@ -1,5 +1,6 @@
 from app.models.account import Account
 from app.models.audit_log import AuditLog
+from app.models.deposit import Deposit
 from app.models.idempotency_record import IdempotencyRecord
 from app.models.ledger_entry import LedgerEntry
 from app.models.otp_code import OtpCode
@@ -16,6 +17,7 @@ from app.models.withdrawal import Withdrawal
 __all__ = [
     "Account",
     "AuditLog",
+    "Deposit",
     "IdempotencyRecord",
     "LedgerEntry",
     "OtpCode",

@@ -1,0 +1,5 @@
+import { AlertCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/common";
+import { ROUTES } from "@/routes/paths";
+export default function TransferFailure({message,onRetry,onEdit}:{message:string;onRetry:()=>void;onEdit:()=>void}){return <div className="mx-auto max-w-md text-center"><div className="mx-auto grid size-14 place-items-center rounded-full" style={{color:"var(--danger)",background:"color-mix(in srgb, var(--danger) 10%, var(--surface))"}}><AlertCircle size={27}/></div><h1 className="mt-4 text-2xl font-semibold" style={{color:"var(--text)"}}>Transfer could not be completed</h1><p className="mt-2 text-sm leading-6" style={{color:"var(--muted)"}}>{message}</p><p className="mt-1 text-sm" style={{color:"var(--muted)"}}>No money was moved.</p><div className="mt-6 grid gap-2"><Button className="w-full" onClick={onRetry}>Try again</Button><Button className="w-full" variant="secondary" onClick={onEdit}>Edit transfer</Button><Link to={ROUTES.dashboard} className="py-2 text-sm font-medium" style={{color:"var(--muted)"}}>Back to dashboard</Link></div></div>}

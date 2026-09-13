@@ -15,6 +15,7 @@ from app.enums.payment_provider import PaymentProvider
 from app.enums.payment_status import PaymentStatus
 
 if TYPE_CHECKING:
+    from app.models.deposit import Deposit
     from app.models.user import User
     from app.models.withdrawal import Withdrawal
 
@@ -28,6 +29,9 @@ class Payment(Base):
     )
     withdrawal_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("withdrawals.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    deposit_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("deposits.id", ondelete="SET NULL"), index=True, nullable=True
     )
 
     provider: Mapped[PaymentProvider] = mapped_column(
@@ -74,3 +78,4 @@ class Payment(Base):
 
     user: Mapped["User"] = relationship(back_populates="payments")
     withdrawal: Mapped["Withdrawal | None"] = relationship(back_populates="payments")
+    deposit: Mapped["Deposit | None"] = relationship(back_populates="payments")

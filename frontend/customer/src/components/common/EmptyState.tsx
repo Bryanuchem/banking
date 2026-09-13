@@ -1,52 +1,94 @@
 import type { ReactNode } from "react";
 import { Inbox } from "lucide-react";
+import { Link } from "react-router-dom";
+
+import Button from "@/components/common/Button";
 
 type EmptyStateProps = {
   title: string;
   description?: string;
-  action?: ReactNode;
   icon?: ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionHref?: string;
 };
 
 export default function EmptyState({
   title,
   description,
-  action,
   icon,
+  actionLabel,
+  onAction,
+  actionHref,
 }: EmptyStateProps) {
   return (
     <div
-      className="flex min-h-56 flex-col items-center justify-center border px-6 py-10 text-center"
+      className="
+        rounded-[var(--radius-card)] border px-5 py-10
+        text-center
+      "
       style={{
         background: "var(--surface)",
         borderColor: "var(--border)",
-        borderRadius: "var(--radius-card)",
       }}
     >
       <div
-        className="mb-4 grid size-11 place-items-center rounded-full"
+        className="
+          mx-auto grid size-11 place-items-center
+          rounded-2xl
+        "
         style={{
-          background: "var(--surface-alt)",
-          color: "var(--muted)",
+          color: "var(--brand-accent)",
+          background:
+            "color-mix(in srgb, var(--brand-accent) 10%, var(--surface))",
         }}
       >
-        {icon ?? <Inbox size={20} strokeWidth={1.8} />}
+        {icon ?? <Inbox size={21} />}
       </div>
 
-      <h3 className="font-semibold" style={{ color: "var(--text)" }}>
+      <h3
+        className="mt-4 font-semibold"
+        style={{ color: "var(--text)" }}
+      >
         {title}
       </h3>
 
       {description ? (
         <p
-          className="mt-1 max-w-sm text-sm leading-6"
+          className="
+            mx-auto mt-2 max-w-md text-sm leading-6
+          "
           style={{ color: "var(--muted)" }}
         >
           {description}
         </p>
       ) : null}
 
-      {action ? <div className="mt-5">{action}</div> : null}
+      {actionLabel && actionHref ? (
+        <div className="mt-5">
+          <Link
+            to={actionHref}
+            className="
+              inline-flex min-h-11 items-center justify-center
+              rounded-[var(--radius-control)] border px-4
+              text-sm font-medium
+            "
+            style={{
+              color: "#fff",
+              background: "var(--brand-primary)",
+              borderColor: "var(--brand-primary)",
+            }}
+          >
+            {actionLabel}
+          </Link>
+        </div>
+      ) : null}
+
+      {actionLabel && onAction && !actionHref ? (
+        <div className="mt-5">
+          <Button onClick={onAction}>{actionLabel}</Button>
+        </div>
+      ) : null}
     </div>
   );
 }

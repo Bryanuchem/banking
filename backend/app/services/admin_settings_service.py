@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import HTTPException
@@ -5,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.constants.setting_definition import DEFINITIONS_BY_KEY, SETTING_DEFINITIONS
+from app.constants.setting_key import SettingKeys
 from app.models.setting import Setting
 from app.services.setting_service import SettingService
 
@@ -30,6 +32,8 @@ class AdminSettingsService:
                 "is_secret": definition.is_secret,
                 "configured": configured,
                 "value": value,
+                "description": definition.description,
+                "formula": definition.formula,
             })
         return output
 
@@ -40,6 +44,30 @@ class AdminSettingsService:
             raise HTTPException(status_code=404, detail="Unknown setting key.")
         if not definition.is_editable:
             raise HTTPException(status_code=403, detail="This setting is not editable.")
+
+        if key == SettingKeys.WITHDRAWAL_FEE_PERCENT:
+            try:
+                percentage = Decimal(str(value))
+            except (InvalidOperation, ValueError) as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Withdrawal fee percentage must be a valid number.",
+                ) from exc
+
+            if percentage <= Decimal("0"):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Withdrawal fee percentage must be greater than zero.",
+                )
+            if percentage > Decimal("100"):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Withdrawal fee percentage cannot exceed 100.",
+                )
+
+            # Keep a stable two-decimal representation in DB-backed settings.
+            value = format(percentage.quantize(Decimal("0.01")), "f")
+
         SettingService.set(db, key, value)
         return {
             "category": definition.category,
@@ -49,4 +77,6 @@ class AdminSettingsService:
             "is_secret": definition.is_secret,
             "configured": True,
             "value": None if definition.is_secret else SettingService.get(db, key),
+            "description": definition.description,
+            "formula": definition.formula,
         }

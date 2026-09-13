@@ -1,5 +1,70 @@
 import { apiClient } from "@/api/client";
-export type LoginPayload={email:string;password:string};
-export type LoginResponse={access_token?:string;token_type?:string;requires_two_factor?:boolean;challenge_token?:string};
-export async function login(payload:LoginPayload){return (await apiClient.post<LoginResponse>("/auth/login",payload)).data;}
-export async function getCurrentUser(){return (await apiClient.get("/auth/me")).data;}
+import type {
+  AuthUser,
+  ForgotPasswordRequest,
+  LoginRequest,
+  LoginResponse,
+  MessageResponse,
+  RegisterRequest,
+  ResetPasswordRequest,
+  TwoFactorVerifyRequest,
+} from "@/types/auth";
+
+export async function login(
+  payload: LoginRequest,
+): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>(
+    "/auth/login",
+    payload,
+  );
+  return data;
+}
+
+export async function register(
+  payload: RegisterRequest,
+): Promise<MessageResponse> {
+  const { data } = await apiClient.post<MessageResponse>(
+    "/auth/register",
+    payload,
+  );
+  return data;
+}
+
+export async function forgotPassword(
+  payload: ForgotPasswordRequest,
+): Promise<MessageResponse> {
+  const { data } = await apiClient.post<MessageResponse>(
+    "/auth/forgot-password",
+    payload,
+  );
+  return data;
+}
+
+export async function resetPassword(
+  payload: ResetPasswordRequest,
+): Promise<MessageResponse> {
+  const { data } = await apiClient.post<MessageResponse>(
+    "/auth/reset-password",
+    payload,
+  );
+  return data;
+}
+
+export async function verifyTwoFactor(
+  payload: TwoFactorVerifyRequest,
+): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>(
+    "/auth/2fa/verify",
+    payload,
+  );
+  return data;
+}
+
+export async function getCurrentUser(): Promise<AuthUser> {
+  const { data } = await apiClient.get<AuthUser>("/auth/me");
+  return data;
+}
+
+export async function logout(): Promise<void> {
+  await apiClient.post("/auth/logout");
+}
