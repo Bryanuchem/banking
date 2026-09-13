@@ -6,7 +6,11 @@ from sqlalchemy.engine import URL
 
 
 class Settings(BaseSettings):
-    """Application configuration loaded from environment variables."""
+    """Bootstrap/infrastructure configuration only.
+
+    Product/runtime configuration such as SMTP, OTP policy, branding and auth
+    policy is stored in the database-backed settings system.
+    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -17,33 +21,15 @@ class Settings(BaseSettings):
     app_name: str = "Banking API"
     app_env: str = "development"
     debug: bool = True
-
-    brand_name: str = "Banking"
-    brand_short_name: str = "Banking"
-    support_email: str | None = None
-    support_phone: str | None = None
-    logo_url: str | None = None
-    favicon_url: str | None = None
-    primary_currency: str = "NGN"
-
     api_v1_prefix: str = "/api/v1"
+
+    app_secret_key: str = Field(default="change-me", repr=False)
 
     db_host: str = "localhost"
     db_port: int = 5432
     db_name: str = "banking"
     db_user: str = "postgres"
     db_password: str = Field(default="", repr=False)
-
-    smtp_enabled: bool = False
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_username: str | None = None
-    smtp_password: str | None = Field(default=None, repr=False)
-    smtp_from_email: str | None = None
-    smtp_use_tls: bool = True
-
-    otp_expiry_minutes: int = Field(default=10, ge=1, le=60)
-    otp_length: int = Field(default=6, ge=4, le=8)
 
     @property
     def database_url(self) -> URL:

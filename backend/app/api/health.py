@@ -4,14 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.database.dependencies import get_db
 
-router = APIRouter()
+router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-def health_check(db: Session = Depends(get_db)):
+def health_check(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))
-
-    return {
-        "status": "ok",
-        "database": "ok",
-    }
+    return {"status": "ok", "database": "ok"}
