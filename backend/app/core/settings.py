@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_password: str = Field(default="", repr=False)
 
+    smtp_enabled: bool = False
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = Field(default=None, repr=False)
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+
+    otp_expiry_minutes: int = Field(default=10, ge=1, le=60)
+    otp_length: int = Field(default=6, ge=4, le=8)
+
     @property
     def database_url(self) -> URL:
         return URL.create(

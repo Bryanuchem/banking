@@ -1,8 +1,17 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-router = APIRouter(tags=["health"])
+from app.database.dependencies import get_db
+
+router = APIRouter()
 
 
 @router.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+def health_check(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+
+    return {
+        "status": "ok",
+        "database": "ok",
+    }
