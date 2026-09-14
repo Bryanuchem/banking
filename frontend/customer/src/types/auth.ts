@@ -7,8 +7,9 @@ export type AuthUser = {
   is_active?: boolean;
   is_verified?: boolean;
   two_factor_enabled?: boolean;
-  account_number?: string;
-  currency?: string;
+  account_number?: string | null;
+  currency?: string | null;
+  is_admin?: boolean;
 };
 
 export type LoginRequest = {

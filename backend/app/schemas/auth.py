@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -43,8 +44,10 @@ class UserResponse(BaseModel):
     last_name: str
     is_active: bool
     is_verified: bool
-    account_number: str
-    currency: str
+    is_admin: bool
+    account_number: str | None
+    currency: str | None
+    created_at: datetime
 
 
 class EmailOnlyRequest(BaseModel):

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.audit_log import AuditLog
     from app.models.deposit import Deposit
     from app.models.otp_code import OtpCode
+    from app.models.notification import NotificationRecipient
     from app.models.payment import Payment
     from app.models.two_factor_recovery_code import TwoFactorRecoveryCode
     from app.models.two_factor_settings import TwoFactorSettings
@@ -44,7 +45,7 @@ class User(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    account: Mapped["Account"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
+    account: Mapped["Account | None"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
     two_factor_settings: Mapped["TwoFactorSettings | None"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
@@ -57,3 +58,6 @@ class User(Base):
     deposits: Mapped[list["Deposit"]] = relationship(back_populates="user")
     payments: Mapped[list["Payment"]] = relationship(back_populates="user")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")
+    notification_recipients: Mapped[list["NotificationRecipient"]] = relationship(
+        foreign_keys="NotificationRecipient.user_id", cascade="all, delete-orphan"
+    )

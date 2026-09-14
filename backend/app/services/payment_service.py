@@ -22,6 +22,7 @@ from app.models.user import User
 from app.models.withdrawal import Withdrawal
 from app.providers.payment.factory import PaymentProviderFactory
 from app.services.deposit_service import DepositService
+from app.services.notification_service import NotificationService
 from app.services.setting_service import SettingService
 
 
@@ -339,6 +340,19 @@ class PaymentService:
                 and payment.withdrawal.status == WithdrawalStatus.AWAITING_FEE.value
             ):
                 payment.withdrawal.status = WithdrawalStatus.PENDING_REVIEW.value
+                NotificationService.safe_notify_user(
+                    db, user_id=payment.withdrawal.user_id,
+                    title="Withdrawal fee verified",
+                    message=f"Your withdrawal fee of {payment.currency} {payment.amount:,.2f} was verified. Your withdrawal is awaiting review.",
+                    event_type="withdrawal.fee_verified", category="financial", severity="success", action_url="/withdraw",
+                )
+                NotificationService.safe_notify_admins(
+                    db, title="Withdrawal awaiting review",
+                    message=f"A withdrawal for {payment.withdrawal.currency} {payment.withdrawal.amount:,.2f} is ready for review.",
+                    event_type="admin.withdrawal_review", category="financial", severity="warning",
+                    action_url=f"/admin/withdrawals/{payment.withdrawal.id}",
+                    metadata={"withdrawal_id": str(payment.withdrawal.id)},
+                )
             if payment.deposit_id is not None:
                 DepositService.complete_verified_payment(db, deposit_id=payment.deposit_id, payment=payment)
         elif result.failed:

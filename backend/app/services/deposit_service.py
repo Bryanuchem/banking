@@ -16,6 +16,7 @@ from app.models.deposit import Deposit
 from app.models.ledger_entry import LedgerEntry
 from app.models.user import User
 from app.services.idempotency_service import IdempotencyService
+from app.services.notification_service import NotificationService
 from app.services.transaction_service import TransactionService
 if TYPE_CHECKING:
     from app.models.payment import Payment
@@ -60,4 +61,11 @@ class DepositService:
         account.available_balance += item.amount
         transaction=TransactionService.create(db,transaction_type=TransactionType.DEPOSIT.value,amount=item.amount,currency=item.currency,status=TransactionStatus.COMPLETED.value,description=f"Account deposit via {payment.provider.value}",prefix="DEP")
         db.add(LedgerEntry(transaction_id=transaction.id,account_id=account.id,entry_type=LedgerEntryType.CREDIT.value,amount=item.amount,balance_after=account.available_balance))
-        item.transaction_id=transaction.id; item.status=DepositStatus.COMPLETED.value; item.completed_at=datetime.now(UTC); db.flush(); return item
+        item.transaction_id=transaction.id; item.status=DepositStatus.COMPLETED.value; item.completed_at=datetime.now(UTC); db.flush()
+        NotificationService.safe_notify_user(
+            db, user_id=item.user_id, title="Deposit completed",
+            message=f"Your deposit of {item.currency} {item.amount:,.2f} is now available.",
+            event_type="deposit.completed", category="financial", severity="success", action_url="/activity",
+            metadata={"amount": str(item.amount), "currency": item.currency, "reference": transaction.reference},
+        )
+        return item

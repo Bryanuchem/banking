@@ -106,6 +106,14 @@ def main() -> int:
     print(f"User ID: {user.id}")
     print(f"Active: {user.is_active}")
     print(f"Admin: {user.is_admin}")
+    print(
+        "Customer account: "
+        + (
+            user.account.account_number
+            if user.account is not None
+            else "None (admin-only identity)"
+        )
+    )
     print("\nYou can now sign in through POST /api/v1/auth/login and use the returned bearer token in Swagger.")
     return 0
 

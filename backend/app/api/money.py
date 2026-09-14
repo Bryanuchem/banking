@@ -14,6 +14,9 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from app.models.withdrawal import Withdrawal
 from app.schemas.money import (
+    AccountDeleteRequest,
+    AccountDeletionResponse,
+    AccountDeletionStatusResponse,
     AccountLookupResponse,
     AccountSummaryResponse,
     TransactionHistoryItem,
@@ -24,6 +27,7 @@ from app.schemas.money import (
     WithdrawalResponse,
 )
 from app.schemas.payment import PaymentCheckoutResponse, PaymentClientApprovalRequest, PaymentStatusResponse
+from app.services.account_deletion_service import AccountDeletionService
 from app.services.idempotency_service import IdempotencyService
 from app.services.payment_service import PaymentService
 from app.services.rate_limit_service import RateLimitService
@@ -58,6 +62,71 @@ def get_account(user: User = Depends(get_current_user)) -> AccountSummaryRespons
         available_balance=account.available_balance,
         held_balance=account.held_balance,
         status=account.status,
+    )
+
+
+@router.get(
+    "/account/deletion-status",
+    response_model=AccountDeletionStatusResponse,
+)
+def account_deletion_status(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AccountDeletionStatusResponse:
+    account = user.account
+    if account is None or account.deleted_at is not None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer account not found.",
+        )
+    return AccountDeletionStatusResponse(
+        **AccountDeletionService.status(db, account=account)
+    )
+
+
+@router.delete(
+    "/account",
+    response_model=AccountDeletionResponse,
+)
+def delete_customer_account(
+    payload: AccountDeleteRequest,
+    x_step_up_authorization: str | None = Header(
+        default=None,
+        alias="X-Step-Up-Authorization",
+    ),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AccountDeletionResponse:
+    account = user.account
+    if account is None or account.deleted_at is not None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer account not found.",
+        )
+
+    require_step_up_if_enabled(
+        db,
+        user=user,
+        authorization_token=x_step_up_authorization,
+        required_scope="account:delete",
+    )
+
+    item, user_deactivated = AccountDeletionService.delete(
+        db,
+        account_id=account.id,
+        actor=user,
+        confirmation=payload.confirmation,
+        reason=payload.reason,
+    )
+    deleted_at = item.deleted_at
+    db.commit()
+
+    return AccountDeletionResponse(
+        account_id=item.id,
+        account_number=item.account_number,
+        deleted_at=deleted_at,
+        user_deactivated=user_deactivated,
+        history_preserved=True,
     )
 
 

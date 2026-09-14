@@ -19,4 +19,5 @@ export const ROUTES = {
   securitySessions: "/security/sessions",
   securityActivity: "/security/activity",
   support: "/support",
+  notifications: "/notifications",
 } as const;

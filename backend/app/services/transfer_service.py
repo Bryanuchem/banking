@@ -14,6 +14,7 @@ from app.models.ledger_entry import LedgerEntry
 from app.models.transfer import Transfer
 from app.models.user import User
 from app.services.idempotency_service import IdempotencyService
+from app.services.notification_service import NotificationService
 from app.services.transaction_service import TransactionService
 
 
@@ -142,6 +143,20 @@ class TransferService:
             ]
         )
         db.flush()
+        recipient_name = f"{recipient_user.first_name} {recipient_user.last_name}".strip()
+        sender_name = f"{user.first_name} {user.last_name}".strip()
+        NotificationService.safe_notify_user(
+            db, user_id=user.id, title="Transfer sent",
+            message=f"You sent {sender.currency} {amount:,.2f} to {recipient_name}.",
+            event_type="transfer.sent", category="financial", severity="info", action_url="/activity",
+            metadata={"amount": str(amount), "currency": sender.currency, "reference": transaction.reference},
+        )
+        NotificationService.safe_notify_user(
+            db, user_id=recipient_user.id, title="Transfer received",
+            message=f"You received {recipient.currency} {amount:,.2f} from {sender_name}.",
+            event_type="transfer.received", category="financial", severity="success", action_url="/activity",
+            metadata={"amount": str(amount), "currency": recipient.currency, "reference": transaction.reference},
+        )
         IdempotencyService.bind(record, resource_type="transfer", resource_id=transfer.id)
         db.flush()
         return transfer, recipient_user

@@ -15,6 +15,7 @@ from app.models.ledger_entry import LedgerEntry
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.services.idempotency_service import IdempotencyService
+from app.services.notification_service import NotificationService
 from app.services.transaction_service import TransactionService
 
 
@@ -99,6 +100,14 @@ class AdminAccountService:
             )
         )
         db.flush()
+        NotificationService.safe_notify_user(
+            db, user_id=account.user_id,
+            title="Account credited",
+            message=f"Your account was credited with {account.currency} {amount:,.2f}.",
+            event_type="account.credited", category="financial", severity="success",
+            action_url="/activity",
+            metadata={"amount": str(amount), "currency": account.currency, "reference": transaction.reference},
+        )
         IdempotencyService.bind(record, resource_type="transaction", resource_id=transaction.id)
         db.flush()
         return account, transaction

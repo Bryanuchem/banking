@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.services.account_service import AccountService
 from app.utils.security import hash_password, validate_password_policy
 
 
@@ -73,11 +72,9 @@ class AdminBootstrapService:
         db.add(user)
         db.flush()
 
-        # Banking currently uses one User identity model for customers and admins.
-        # Keep the User invariant intact by creating the associated zero-balance
-        # virtual account. Admin authorization is still controlled exclusively by
-        # User.is_admin and require_admin().
-        AccountService.create_for_user(db, user)
+        # Administrator authorization and customer account ownership are
+        # separate capabilities. A newly created administrator is admin-only.
+        # Promoting an existing customer intentionally preserves their account.
 
         db.commit()
         db.refresh(user)

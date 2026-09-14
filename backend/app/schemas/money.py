@@ -86,3 +86,28 @@ class WithdrawalQuoteResponse(BaseModel):
     fee_amount: Decimal
     currency: str
     recipient_receives: Decimal
+
+
+
+class AccountDeletionStatusResponse(BaseModel):
+    account_number: str
+    currency: str
+    available_balance: Decimal
+    held_balance: Decimal
+    pending_withdrawals: int
+    pending_deposits: int
+    can_delete: bool
+    clear_route: str | None = None
+
+
+class AccountDeleteRequest(BaseModel):
+    confirmation: str = Field(min_length=1, max_length=20)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AccountDeletionResponse(BaseModel):
+    account_id: UUID
+    account_number: str
+    deleted_at: datetime
+    user_deactivated: bool
+    history_preserved: bool = True

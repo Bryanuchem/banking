@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -30,6 +30,10 @@ class Withdrawal(Base):
     destination_bank_name: Mapped[str] = mapped_column(String(120), nullable=False)
     destination_account_number: Mapped[str] = mapped_column(String(30), nullable=False)
     destination_account_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    external_reference: Mapped[str | None] = mapped_column(
+        String(120), nullable=True, index=True
+    )
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
         String(30), index=True, nullable=False, default=WithdrawalStatus.PENDING.value
     )

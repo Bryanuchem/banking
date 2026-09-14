@@ -1,4 +1,6 @@
 import { Bell } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getUnreadNotificationCount } from "@/api/notifications";
 import { Link } from "react-router-dom";
 
 import ThemeToggle from "@/components/common/ThemeToggle";
@@ -20,6 +22,7 @@ function initials(user?: DashboardUser) {
 
 export default function AppHeader({ user }: Props) {
   const { config } = useBranding();
+  const unreadQ = useQuery({ queryKey: ["notifications","unread-count"], queryFn: getUnreadNotificationCount, refetchInterval: 30_000 });
 
   return (
     <header
@@ -63,22 +66,20 @@ export default function AppHeader({ user }: Props) {
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
-          <button
-            type="button"
-            aria-label="Notifications, coming soon"
-            title="Notifications are planned for a later pass."
-            className="
-              relative grid size-10 place-items-center
-              rounded-xl border
-            "
-            style={{
-              color: "var(--muted)",
-              background: "var(--surface)",
-              borderColor: "var(--border)",
-            }}
+          <Link
+            to={ROUTES.notifications}
+            aria-label="Open notifications"
+            title="Notifications"
+            className="relative grid size-10 place-items-center rounded-xl border"
+            style={{ color: "var(--muted)", background: "var(--surface)", borderColor: "var(--border)" }}
           >
             <Bell size={18} strokeWidth={1.8} />
-          </button>
+            {(unreadQ.data?.unread ?? 0) > 0 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{background:"var(--danger)"}}>
+                {Math.min(unreadQ.data?.unread ?? 0, 99)}
+              </span>
+            ) : null}
+          </Link>
 
           <Link
             to={ROUTES.profile}

@@ -9,6 +9,7 @@ import LoginPage from "@/pages/Login";
 import LoginLockedPage from "@/pages/LoginLocked";
 import LandingPage from "@/pages/Landing";
 import NotFoundPage from "@/pages/NotFound";
+import NotificationsPage from "@/pages/Notifications";
 import PaymentsPage from "@/pages/Payments";
 import ProfilePage from "@/pages/Profile";
 import SecurityPage from "@/pages/Security";
@@ -89,6 +90,10 @@ export default function AppRoutes() {
           <Route
             path={ROUTES.payments}
             element={<PaymentsPage />}
+          />
+          <Route
+            path={ROUTES.notifications}
+            element={<NotificationsPage />}
           />
           <Route
             path={ROUTES.profile}

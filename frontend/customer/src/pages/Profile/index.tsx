@@ -2,6 +2,7 @@ import {
   ArrowRight,
   Copy,
   LogOut,
+  Trash2,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -13,15 +14,21 @@ import {
 import { Link } from "react-router-dom";
 
 import Button from "@/components/common/Button";
+import DeleteAccountDialog from "@/components/profile/DeleteAccountDialog";
 import FormField from "@/components/common/FormField";
 import Input from "@/components/common/Input";
 import PageHeader from "@/components/common/PageHeader";
+import { useAuthContext } from "@/context/AuthContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import {
   useProfile,
+  useTwoFactorStatus,
   useUpdateProfile,
 } from "@/hooks/useProfileSecurity";
 import { useSignOut } from "@/hooks/useSignOut";
+import { ROUTES } from "@/routes/paths";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 function initials(
   first?: string | null,
@@ -36,6 +43,11 @@ export default function ProfilePage() {
   const updateM = useUpdateProfile();
   const signOut = useSignOut();
   const snackbar = useSnackbar();
+  const auth = useAuthContext();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const twoFactorQ = useTwoFactorStatus();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [firstName, setFirstName] =
     useState("");
@@ -343,8 +355,49 @@ export default function ProfilePage() {
               Sign out
             </span>
           </button>
+
+
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-card)] border p-4 text-left"
+            style={{
+              color: "var(--danger)",
+              background:
+                "color-mix(in srgb, var(--danger) 5%, var(--surface))",
+              borderColor:
+                "color-mix(in srgb, var(--danger) 28%, var(--border))",
+            }}
+          >
+            <Trash2 size={18} />
+            <div>
+              <span className="font-medium">
+                Delete banking account
+              </span>
+              <p
+                className="mt-0.5 text-xs"
+                style={{ color: "var(--muted)" }}
+              >
+                Requires a zero balance. Financial history is preserved.
+              </p>
+            </div>
+          </button>
         </div>
       </div>
+      <DeleteAccountDialog
+        open={deleteOpen}
+        twoFactorEnabled={Boolean(
+          twoFactorQ.data?.enabled,
+        )}
+        onCancel={() => setDeleteOpen(false)}
+        onDeleted={() => {
+          auth.signOut();
+          queryClient.clear();
+          navigate(ROUTES.landing, {
+            replace: true,
+          });
+        }}
+      />
     </div>
   );
 }

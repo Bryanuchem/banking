@@ -92,7 +92,9 @@ class SettingKeys:
     SMTP_USERNAME = "smtp_username"
     SMTP_PASSWORD = "smtp_password"
     SMTP_FROM_EMAIL = "smtp_from_email"
+    SMTP_FROM_NAME = "smtp_from_name"
     SMTP_USE_TLS = "smtp_use_tls"
+    SMTP_USE_SSL = "smtp_use_ssl"
 
     # Withdrawals
     # WITHDRAWAL_FEE_ENABLED / WITHDRAWAL_FEE_FLAT are retained as legacy
@@ -104,6 +106,7 @@ class SettingKeys:
 
     # Payments
     PAYMENT_PROVIDER = "payment_provider"
+    PAYSTACK_PUBLIC_KEY = "paystack_public_key"
     PAYSTACK_SECRET_KEY = "paystack_secret_key"
     PAYSTACK_CALLBACK_URL = "paystack_callback_url"
     STRIPE_SECRET_KEY = "stripe_secret_key"
@@ -136,3 +139,17 @@ class SettingKeys:
     RATE_LIMIT_WITHDRAWAL_PER_HOUR = "rate_limit_withdrawal_per_hour"
     RATE_LIMIT_PAYMENT_PER_HOUR = "rate_limit_payment_per_hour"
     RATE_LIMIT_ADMIN_PER_MINUTE = "rate_limit_admin_per_minute"
+
+    # Background workers / scheduled operations
+    WORKER_ENABLED = "worker_enabled"
+    WORKER_PAYMENT_VERIFICATION_INTERVAL_SECONDS = "worker_payment_verification_interval_seconds"
+    WORKER_RECONCILIATION_INTERVAL_SECONDS = "worker_reconciliation_interval_seconds"
+    WORKER_WITHDRAWAL_MONITOR_INTERVAL_SECONDS = "worker_withdrawal_monitor_interval_seconds"
+    WORKER_SESSION_CLEANUP_INTERVAL_SECONDS = "worker_session_cleanup_interval_seconds"
+    WORKER_NOTIFICATION_CLEANUP_INTERVAL_SECONDS = "worker_notification_cleanup_interval_seconds"
+    WORKER_IDEMPOTENCY_CLEANUP_INTERVAL_SECONDS = "worker_idempotency_cleanup_interval_seconds"
+    WORKER_SESSION_RETENTION_DAYS = "worker_session_retention_days"
+    WORKER_IDEMPOTENCY_RETENTION_HOURS = "worker_idempotency_retention_hours"
+
+    # Runtime HTTP policy
+    CORS_ALLOWED_ORIGINS = "cors_allowed_origins"

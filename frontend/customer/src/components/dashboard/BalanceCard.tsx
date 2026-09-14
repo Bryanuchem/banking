@@ -30,7 +30,7 @@ export default function BalanceCard({
   return (
     <section
       className="
-        relative overflow-hidden rounded-[var(--radius-card)]
+        relative overflow-visible rounded-[var(--radius-card)]
         border p-5 sm:p-6 lg:p-7
       "
       style={{
@@ -45,19 +45,25 @@ export default function BalanceCard({
       <div
         aria-hidden="true"
         className="
-          pointer-events-none absolute -bottom-20 -right-14
-          size-56 rounded-[45%] opacity-10
+          pointer-events-none absolute inset-0 overflow-hidden
+          rounded-[var(--radius-card)]
         "
-        style={{ background: "#fff" }}
-      />
-      <div
-        aria-hidden="true"
-        className="
-          pointer-events-none absolute bottom-12 right-16
-          size-20 rotate-45 rounded-[45%] opacity-10
-        "
-        style={{ background: "#fff" }}
-      />
+      >
+        <div
+          className="
+            absolute -bottom-20 -right-14 size-56
+            rounded-[45%] opacity-10
+          "
+          style={{ background: "#fff" }}
+        />
+        <div
+          className="
+            absolute bottom-12 right-16 size-20 rotate-45
+            rounded-[45%] opacity-10
+          "
+          style={{ background: "#fff" }}
+        />
+      </div>
 
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-4">
@@ -152,9 +158,9 @@ export default function BalanceCard({
             {showHeldInfo ? (
               <div
                 className="
-                  absolute left-0 top-8 z-20 w-64
+                  absolute right-0 top-8 z-30 w-64 max-w-[calc(100vw-3rem)]
                   rounded-xl border p-3 text-xs leading-5
-                  sm:w-72
+                  sm:left-0 sm:right-auto sm:w-72
                 "
                 style={{
                   color: "var(--text)",

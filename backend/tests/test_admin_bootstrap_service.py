@@ -53,12 +53,10 @@ def make_user(
     )
 
 
-def test_create_admin_builds_admin_and_account(
+def test_create_admin_builds_admin_identity_without_account(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = FakeDB([None])
-    account_calls = []
-
     monkeypatch.setattr(
         bootstrap_module,
         "validate_password_policy",
@@ -69,14 +67,6 @@ def test_create_admin_builds_admin_and_account(
         "hash_password",
         lambda password: f"hashed:{password}",
     )
-    monkeypatch.setattr(
-        bootstrap_module.AccountService,
-        "create_for_user",
-        staticmethod(
-            lambda db, user: account_calls.append((db, user))
-        ),
-    )
-
     result = AdminBootstrapService.create(
         db,
         email="  BASE-ADMIN@EXAMPLE.COM  ",
@@ -101,7 +91,7 @@ def test_create_admin_builds_admin_and_account(
     assert db.flushes == 1
     assert db.commits == 1
     assert db.refreshed == [user]
-    assert account_calls == [(db, user)]
+    assert user.account is None
 
 
 def test_create_admin_is_idempotent_for_existing_admin(

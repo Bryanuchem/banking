@@ -2,8 +2,10 @@ from app.models.account import Account
 from app.models.audit_log import AuditLog
 from app.models.deposit import Deposit
 from app.models.idempotency_record import IdempotencyRecord
+from app.models.job_run import JobRun
 from app.models.ledger_entry import LedgerEntry
 from app.models.otp_code import OtpCode
+from app.models.notification import Notification, NotificationRecipient
 from app.models.payment import Payment
 from app.models.setting import Setting
 from app.models.transaction import Transaction
@@ -19,8 +21,11 @@ __all__ = [
     "AuditLog",
     "Deposit",
     "IdempotencyRecord",
+    "JobRun",
     "LedgerEntry",
     "OtpCode",
+    "Notification",
+    "NotificationRecipient",
     "Payment",
     "Setting",
     "Transaction",

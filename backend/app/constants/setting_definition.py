@@ -206,7 +206,9 @@ SETTING_DEFINITIONS = (
     SettingDefinition("smtp", SettingKeys.SMTP_USERNAME, "string", ""),
     SettingDefinition("smtp", SettingKeys.SMTP_PASSWORD, "string", "", is_secret=True),
     SettingDefinition("smtp", SettingKeys.SMTP_FROM_EMAIL, "string", ""),
+    SettingDefinition("smtp", SettingKeys.SMTP_FROM_NAME, "string", "Banking"),
     SettingDefinition("smtp", SettingKeys.SMTP_USE_TLS, "boolean", True),
+    SettingDefinition("smtp", SettingKeys.SMTP_USE_SSL, "boolean", False),
 
     SettingDefinition(
         "withdrawals",
@@ -221,6 +223,7 @@ SETTING_DEFINITIONS = (
     ),
 
     SettingDefinition("payments", SettingKeys.PAYMENT_PROVIDER, "string", "stripe"),
+    SettingDefinition("payments", SettingKeys.PAYSTACK_PUBLIC_KEY, "string", ""),
     SettingDefinition("payments", SettingKeys.PAYSTACK_SECRET_KEY, "string", "", is_secret=True),
     SettingDefinition("payments", SettingKeys.PAYSTACK_CALLBACK_URL, "string", ""),
     SettingDefinition("payments", SettingKeys.STRIPE_SECRET_KEY, "string", "", is_secret=True),
@@ -251,7 +254,92 @@ SETTING_DEFINITIONS = (
     SettingDefinition("rate_limiting", SettingKeys.RATE_LIMIT_TRANSFER_PER_MINUTE, "number", 10),
     SettingDefinition("rate_limiting", SettingKeys.RATE_LIMIT_WITHDRAWAL_PER_HOUR, "number", 5),
     SettingDefinition("rate_limiting", SettingKeys.RATE_LIMIT_PAYMENT_PER_HOUR, "number", 10),
+
     SettingDefinition("rate_limiting", SettingKeys.RATE_LIMIT_ADMIN_PER_MINUTE, "number", 60),
+
+    # Runtime HTTP policy. Operational configuration, not a secret.
+    SettingDefinition(
+        "security",
+        SettingKeys.CORS_ALLOWED_ORIGINS,
+        "json",
+        [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+        ],
+        description=(
+            "Allowed browser origins for customer/admin frontends. "
+            "Use full origins such as https://app.example.com."
+        ),
+    ),
+
+    # Background worker scheduling. These are runtime settings, so schedules can
+    # be changed without rebuilding or restarting the API process.
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_ENABLED,
+        "boolean",
+        True,
+        description="Allow the standalone background runner to execute due jobs.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_PAYMENT_VERIFICATION_INTERVAL_SECONDS,
+        "number",
+        60,
+        description="How often pending payment attempts are re-verified.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_RECONCILIATION_INTERVAL_SECONDS,
+        "number",
+        300,
+        description="How often account and ledger balances are reconciled.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_WITHDRAWAL_MONITOR_INTERVAL_SECONDS,
+        "number",
+        120,
+        description="How often the runner checks for withdrawals awaiting review.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_SESSION_CLEANUP_INTERVAL_SECONDS,
+        "number",
+        600,
+        description="How often old expired or revoked sessions are pruned.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_NOTIFICATION_CLEANUP_INTERVAL_SECONDS,
+        "number",
+        1800,
+        description="How often expired in-app notifications are removed.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_IDEMPOTENCY_CLEANUP_INTERVAL_SECONDS,
+        "number",
+        3600,
+        description="How often old idempotency records are pruned.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_SESSION_RETENTION_DAYS,
+        "number",
+        30,
+        description="Days to retain expired or revoked session records.",
+    ),
+    SettingDefinition(
+        "operations",
+        SettingKeys.WORKER_IDEMPOTENCY_RETENTION_HOURS,
+        "number",
+        168,
+        description="Hours to retain completed idempotency keys.",
+    ),
+
 )
 
 DEFINITIONS_BY_KEY = {item.key: item for item in SETTING_DEFINITIONS}

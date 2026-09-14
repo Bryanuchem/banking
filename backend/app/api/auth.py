@@ -33,6 +33,7 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.otp_service import OtpService
+from app.services.notification_service import NotificationService
 from app.services.rate_limit_service import RateLimitService
 from app.services.session_service import SessionService
 from app.services.two_factor_service import TwoFactorService
@@ -47,6 +48,10 @@ def _ip(request: Request) -> str:
 
 
 def _user_response(user: User) -> UserResponse:
+    account = user.account
+    if account is not None and account.deleted_at is not None:
+        account = None
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -55,8 +60,10 @@ def _user_response(user: User) -> UserResponse:
         last_name=user.last_name,
         is_active=user.is_active,
         is_verified=user.is_verified,
-        account_number=user.account.account_number,
-        currency=user.account.currency,
+        is_admin=user.is_admin,
+        account_number=account.account_number if account is not None else None,
+        currency=account.currency if account is not None else None,
+        created_at=user.created_at,
     )
 
 
@@ -240,6 +247,12 @@ def reset_password(payload: ResetPasswordRequest, request: Request, db: Session 
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     user.password_hash = hash_password(payload.new_password)
+    NotificationService.safe_notify_user(
+        db, user_id=user.id, title="Password changed",
+        message="Your password was changed successfully.",
+        event_type="security.password_changed", category="security", severity="success",
+        action_url="/security/activity",
+    )
     user.failed_login_attempts = 0
     user.locked_until = None
     SessionService.revoke_all(db, user.id)
@@ -262,6 +275,12 @@ def confirm_two_factor(payload: TwoFactorCodeRequest, request: Request, user: Us
         default_limit=5, window_seconds=600,
     )
     recovery_codes = TwoFactorService.confirm_setup(db, user, payload.code)
+    NotificationService.safe_notify_user(
+        db, user_id=user.id, title="Two-factor authentication enabled",
+        message="Two-factor authentication is now protecting your account.",
+        event_type="security.2fa_enabled", category="security", severity="success",
+        action_url="/security/2fa",
+    )
     _audit_security(
         db,
         user=user,
@@ -280,6 +299,12 @@ def disable_two_factor(payload: TwoFactorCodeRequest, request: Request, user: Us
         default_limit=5, window_seconds=600,
     )
     TwoFactorService.disable(db, user, payload.code)
+    NotificationService.safe_notify_user(
+        db, user_id=user.id, title="Two-factor authentication disabled",
+        message="Two-factor authentication was disabled on your account.",
+        event_type="security.2fa_disabled", category="security", severity="warning",
+        action_url="/security/2fa",
+    )
     _audit_security(
         db,
         user=user,
