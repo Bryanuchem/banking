@@ -1,3 +1,4 @@
+import re
 import time
 from typing import Any
 
@@ -14,6 +15,7 @@ DEFAULT_CORS_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "*.trycloudflare.com",
 ]
 
 
@@ -32,9 +34,20 @@ def normalize_origins(value: Any) -> list[str]:
         if not origin or origin in seen:
             continue
 
-        if not (
+        is_full_origin = (
             origin.startswith("http://")
             or origin.startswith("https://")
+        )
+        is_domain_wildcard = (
+            origin.startswith("*.")
+            and "/" not in origin[2:]
+            and ":" not in origin[2:]
+            and "." in origin[2:]
+        )
+
+        if not (
+            is_full_origin
+            or is_domain_wildcard
         ):
             continue
 
@@ -42,6 +55,32 @@ def normalize_origins(value: Any) -> list[str]:
         seen.add(origin)
 
     return output or DEFAULT_CORS_ORIGINS.copy()
+
+
+def split_cors_origins(
+    origins: list[str],
+) -> tuple[list[str], str | None]:
+    exact: list[str] = []
+    wildcard_patterns: list[str] = []
+
+    for origin in origins:
+        if origin.startswith("*."):
+            suffix = re.escape(origin[2:])
+            wildcard_patterns.append(
+                rf"https://[^./]+\.{suffix}(?::\d+)?"
+            )
+        else:
+            exact.append(origin)
+
+    if not wildcard_patterns:
+        return exact, None
+
+    return (
+        exact,
+        "^(?:"
+        + "|".join(wildcard_patterns)
+        + ")$",
+    )
 
 
 class DatabaseCORSMiddleware:
@@ -104,9 +143,16 @@ class DatabaseCORSMiddleware:
             await self.app(scope, receive, send)
             return
 
+        exact_origins, origin_regex = (
+            split_cors_origins(
+                self._origins(),
+            )
+        )
+
         cors = CORSMiddleware(
             self.app,
-            allow_origins=self._origins(),
+            allow_origins=exact_origins,
+            allow_origin_regex=origin_regex,
             allow_credentials=True,
             allow_methods=[
                 "GET",

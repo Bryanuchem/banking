@@ -471,4 +471,8 @@ export type AdminJobsResponse = {
 export type AdminJobRunListResponse = {
   items: AdminJobRun[];
   total: number;
+  completed: number;
+  warning: number;
+  failed: number;
+  running: number;
 };

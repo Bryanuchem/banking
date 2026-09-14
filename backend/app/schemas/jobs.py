@@ -36,3 +36,7 @@ class AdminJobsResponse(BaseModel):
 class AdminJobRunListResponse(BaseModel):
     items: list[AdminJobRunItem]
     total: int
+    completed: int
+    warning: int
+    failed: int
+    running: int

@@ -267,10 +267,13 @@ SETTING_DEFINITIONS = (
             "http://127.0.0.1:5173",
             "http://localhost:5174",
             "http://127.0.0.1:5174",
+            "*.trycloudflare.com",
         ],
         description=(
             "Allowed browser origins for customer/admin frontends. "
-            "Use full origins such as https://app.example.com."
+            "Use full origins such as https://app.example.com. "
+            "Development suffix wildcards such as *.trycloudflare.com "
+            "are also supported."
         ),
     ),
 

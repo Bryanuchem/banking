@@ -5,10 +5,25 @@ import {
   getAccessToken,
 } from "@/utils/storage";
 
+const localApiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ??
+  "http://localhost:8000/api/v1";
+
+const cloudflareApiBaseUrl =
+  import.meta.env.VITE_CLOUDFLARE_URL?.trim();
+
+const isCloudflarePreview =
+  typeof window !== "undefined" &&
+  window.location.hostname.endsWith(
+    ".trycloudflare.com",
+  );
+
 export const apiClient = axios.create({
   baseURL:
-    import.meta.env.VITE_API_BASE_URL ??
-    "http://localhost:8000/api/v1",
+    isCloudflarePreview &&
+    cloudflareApiBaseUrl
+      ? cloudflareApiBaseUrl
+      : localApiBaseUrl,
   timeout: 15000,
 });
 

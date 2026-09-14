@@ -92,9 +92,43 @@ def list_job_runs(
         .offset(offset)
     ).all()
 
+    status_counts = dict(
+        db.execute(
+            select(
+                JobRun.status,
+                func.count(),
+            )
+            .group_by(JobRun.status)
+        ).all()
+    )
+
     return AdminJobRunListResponse(
         items=[_run_view(item) for item in rows],
         total=total,
+        completed=int(
+            status_counts.get(
+                "completed",
+                0,
+            )
+        ),
+        warning=int(
+            status_counts.get(
+                "warning",
+                0,
+            )
+        ),
+        failed=int(
+            status_counts.get(
+                "failed",
+                0,
+            )
+        ),
+        running=int(
+            status_counts.get(
+                "running",
+                0,
+            )
+        ),
     )
 
 

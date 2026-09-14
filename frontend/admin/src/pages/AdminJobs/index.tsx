@@ -1,6 +1,7 @@
 import {
   Activity,
   CheckCircle2,
+  CircleDot,
   Clock3,
   Play,
   RefreshCw,
@@ -208,6 +209,39 @@ export default function AdminJobsPage() {
             Scheduled background operations are managed from this page.
           </p>
         </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard
+          label="Total attempted"
+          value={runsQ.data?.total ?? 0}
+          icon={Activity}
+          tone="default"
+        />
+        <SummaryCard
+          label="Completed"
+          value={runsQ.data?.completed ?? 0}
+          icon={CheckCircle2}
+          tone="success"
+        />
+        <SummaryCard
+          label="Warnings"
+          value={runsQ.data?.warning ?? 0}
+          icon={TriangleAlert}
+          tone="warning"
+        />
+        <SummaryCard
+          label="Failed"
+          value={runsQ.data?.failed ?? 0}
+          icon={XCircle}
+          tone="danger"
+        />
+        <SummaryCard
+          label="In progress"
+          value={runsQ.data?.running ?? 0}
+          icon={CircleDot}
+          tone="info"
+        />
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -452,6 +486,71 @@ function RunRow({
         <Status value={run.status} />
       </td>
     </tr>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Activity;
+  tone:
+    | "default"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info";
+}) {
+  const toneColor =
+    tone === "success"
+      ? "var(--success)"
+      : tone === "warning"
+        ? "var(--warning)"
+        : tone === "danger"
+          ? "var(--danger)"
+          : tone === "info"
+            ? "var(--brand-primary)"
+            : "var(--text)";
+
+  return (
+    <article
+      className="rounded-2xl border p-4"
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--border)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p
+            className="text-xs font-medium"
+            style={{ color: "var(--muted)" }}
+          >
+            {label}
+          </p>
+          <p
+            className="mt-2 text-2xl font-semibold tracking-[-0.03em]"
+            style={{ color: "var(--text)" }}
+          >
+            {value.toLocaleString()}
+          </p>
+        </div>
+
+        <span
+          className="grid size-9 place-items-center rounded-xl"
+          style={{
+            background: "var(--surface-alt)",
+            color: toneColor,
+          }}
+        >
+          <Icon size={17} />
+        </span>
+      </div>
+    </article>
   );
 }
 
