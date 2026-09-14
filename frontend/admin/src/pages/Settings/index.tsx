@@ -1085,8 +1085,77 @@ export default function AdminSettingsPage() {
             </SettingsCard>
 
             <SettingsCard
+              title="Password policy"
+              description="Requirements applied when customers and administrators create or change passwords."
+            >
+              <Field
+                label="Minimum password length"
+                type="number"
+                value={valueString(
+                  draft,
+                  "password_min_length",
+                )}
+                onChange={(value) =>
+                  setValue(
+                    "password_min_length",
+                    value,
+                  )
+                }
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Toggle
+                  label="Require uppercase letters"
+                  checked={valueBoolean(
+                    draft,
+                    "require_uppercase",
+                  )}
+                  onChange={(value) =>
+                    setValue(
+                      "require_uppercase",
+                      value,
+                    )
+                  }
+                />
+                <Toggle
+                  label="Require numbers"
+                  checked={valueBoolean(
+                    draft,
+                    "require_numbers",
+                  )}
+                  onChange={(value) =>
+                    setValue(
+                      "require_numbers",
+                      value,
+                    )
+                  }
+                />
+                <Toggle
+                  label="Require special characters"
+                  checked={valueBoolean(
+                    draft,
+                    "require_special_characters",
+                  )}
+                  onChange={(value) =>
+                    setValue(
+                      "require_special_characters",
+                      value,
+                    )
+                  }
+                />
+              </div>
+
+              <p
+                className="text-xs leading-5"
+                style={{ color: "var(--muted)" }}
+              >
+                Minimum length must be between 8 and 128 characters. Changes apply to new passwords and future password changes.
+              </p>
+            </SettingsCard>
+
+            <SettingsCard
               title="Allowed application origins"
-              description="Browser origins allowed by the DB-backed CORS policy."
+              description="Browser origins allowed by the DB-backed CORS policy. Development suffix wildcards such as *.trycloudflare.com are supported."
             >
               <div className="space-y-2">
                 {(
@@ -1140,7 +1209,7 @@ export default function AdminSettingsPage() {
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   value={newOrigin}
-                  placeholder="https://app.example.com"
+                  placeholder="https://app.example.com or *.trycloudflare.com"
                   onChange={(event) =>
                     setNewOrigin(
                       event.target.value,
@@ -1188,7 +1257,7 @@ export default function AdminSettingsPage() {
                   "var(--surface-alt)",
               }}
             >
-              Review values before saving. Withdrawal fee changes apply to newly calculated withdrawals only. CORS changes take effect through the runtime policy cache without restarting the API.
+              Review values before saving. Withdrawal fee changes apply to newly calculated withdrawals only. Password policy changes apply to new or changed passwords. CORS changes take effect through the runtime policy cache without restarting the API.
             </div>
           </SettingsCard>
         </div>

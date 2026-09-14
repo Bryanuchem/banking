@@ -65,6 +65,10 @@ export const sectionKeys: Record<string, string[]> = {
     "withdrawal_fee_percent",
     "registration_enabled",
     "email_verification_required",
+    "password_min_length",
+    "require_uppercase",
+    "require_numbers",
+    "require_special_characters",
     "cors_allowed_origins",
   ],
 };

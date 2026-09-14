@@ -33,7 +33,7 @@ export default function SecurityNav() {
           end={to === ROUTES.security}
           className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold"
           style={({ isActive }) => ({
-            color: isActive ? "#fff" : "var(--muted)",
+            color: isActive ? "var(--on-brand-primary)" : "var(--muted)",
             background: isActive
               ? "var(--brand-primary)"
               : "transparent",

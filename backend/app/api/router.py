@@ -1,6 +1,21 @@
 from fastapi import APIRouter
 
-from app.api import admin, admin_jobs, admin_notifications, admin_operations, auth, config, deposits, health, health_ops, internal, internal_operations, money, notifications, payments
+from app.api import (
+    admin, 
+    admin_jobs, 
+    admin_notifications, 
+    admin_operations, 
+    auth, 
+    config, 
+    deposits, 
+    health, 
+    health_ops, 
+    internal, 
+    internal_operations, 
+    money, 
+    notifications, 
+    payments
+    )
 
 api_router = APIRouter()
 api_router.include_router(health.router)

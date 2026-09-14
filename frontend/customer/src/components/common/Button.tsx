@@ -36,7 +36,7 @@ export default function Button({
     variant === "primary"
       ? {
           background: "var(--brand-primary)",
-          color: "var(--bg)",
+          color: "var(--on-brand-primary)",
           borderColor: "var(--brand-primary)",
         }
       : variant === "danger"

@@ -48,10 +48,10 @@ export default function SnackbarViewport() {
   return (
     <div
       className="
-        pointer-events-none fixed bottom-4 right-4
-        z-[140] flex max-w-[calc(100vw-2rem)]
-        flex-col items-end gap-2
-        sm:bottom-5 sm:right-5
+        pointer-events-none fixed bottom-4 left-4 right-4
+        z-[140] flex flex-col items-end gap-2
+        sm:bottom-5 sm:left-auto sm:right-5
+        sm:max-w-[calc(100vw-2.5rem)]
       "
       aria-live="polite"
       aria-atomic="false"
@@ -66,10 +66,10 @@ export default function SnackbarViewport() {
           <div
             key={item.id}
             className="
-              pointer-events-auto inline-flex
-              max-w-sm items-center gap-2
-              rounded-lg border px-3 py-2
-              shadow-lg
+              pointer-events-auto flex w-full
+              max-w-sm items-start gap-2
+              rounded-lg border px-3 py-2.5
+              shadow-lg sm:w-auto
             "
             style={{
               color: "var(--text)",
@@ -84,7 +84,7 @@ export default function SnackbarViewport() {
               style={{ color }}
             />
 
-            <p className="whitespace-nowrap text-sm leading-5">
+            <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-5">
               {item.message}
             </p>
 

@@ -20,7 +20,7 @@ export default function Button({
   const style =
     variant === "primary"
       ? {
-          color: "#fff",
+          color: "var(--on-brand-primary)",
           background: "var(--brand-primary)",
           borderColor: "var(--brand-primary)",
         }

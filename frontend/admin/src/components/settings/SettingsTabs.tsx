@@ -43,7 +43,7 @@ export default function SettingsTabs({
             style={{
               color:
                 active === value
-                  ? "#fff"
+                  ? "var(--on-brand-primary)"
                   : "var(--muted)",
               background:
                 active === value

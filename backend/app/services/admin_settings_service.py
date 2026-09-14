@@ -138,6 +138,31 @@ class AdminSettingsService:
     @staticmethod
     def _validate_origin(value: str) -> str:
         candidate = value.strip()
+
+        # Development preview suffix wildcards are supported by the
+        # database-backed CORS middleware, for example:
+        # *.trycloudflare.com
+        if candidate.startswith("*."):
+            hostname = candidate[2:]
+            if (
+                not hostname
+                or "." not in hostname
+                or "/" in hostname
+                or ":" in hostname
+                or "?" in hostname
+                or "#" in hostname
+                or "*" in hostname
+                or any(part == "" for part in hostname.split("."))
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "CORS wildcard origins must use a domain suffix "
+                        "such as *.trycloudflare.com."
+                    ),
+                )
+            return candidate.lower()
+
         parsed = urlparse(candidate)
         if (
             parsed.scheme not in {"http", "https"}
@@ -151,7 +176,8 @@ class AdminSettingsService:
                 status_code=422,
                 detail=(
                     "CORS origins must be full http/https origins "
-                    "without a path, query or fragment."
+                    "without a path, query or fragment, or a supported "
+                    "domain suffix wildcard such as *.trycloudflare.com."
                 ),
             )
         return f"{parsed.scheme}://{parsed.netloc}"
@@ -194,6 +220,25 @@ class AdminSettingsService:
                 percentage.quantize(Decimal("0.01")),
                 "f",
             )
+
+        if key == SettingKeys.PASSWORD_MIN_LENGTH:
+            try:
+                minimum = int(value)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Password minimum length must be an integer.",
+                ) from exc
+
+            if not 8 <= minimum <= 128:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Password minimum length must be between "
+                        "8 and 128 characters."
+                    ),
+                )
+            return minimum
 
         if key == SettingKeys.CORS_ALLOWED_ORIGINS:
             if not isinstance(value, list):

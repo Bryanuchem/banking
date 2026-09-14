@@ -8,6 +8,7 @@
   --brand-primary: #0f766e;
   --brand-secondary: #133453;
   --brand-accent: #0d9488;
+  --on-brand-primary: var(--bg);
   --success: #159455;
   --warning: #d58809;
   --danger: #d23f4d;
@@ -25,6 +26,7 @@
   --text: #edf4fb;
   --muted: #9eb0c2;
   --border: #233b52;
+  --on-brand-primary: var(--bg);
   --admin-sidebar: #071522;
   --admin-sidebar-soft: #12283c;
   --admin-sidebar-text: #e5eef7;

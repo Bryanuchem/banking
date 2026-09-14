@@ -256,7 +256,7 @@ export default function AdminSidebar() {
                   className="flex min-h-11 items-center gap-3.5 rounded-xl px-3.5 text-sm font-medium transition"
                   style={({ isActive }) => ({
                     color: isActive
-                      ? "#fff"
+                      ? "var(--on-brand-primary)"
                       : "var(--admin-sidebar-muted)",
                     background: isActive
                       ? "var(--admin-sidebar-soft)"

@@ -142,7 +142,7 @@ export default function AdminWithdrawalsPage() {
             style={{
               color:
                 status === value
-                  ? "#fff"
+                  ? "var(--on-brand-primary)"
                   : "var(--muted)",
               background:
                 status === value

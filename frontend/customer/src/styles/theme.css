@@ -12,6 +12,7 @@
   --brand-primary: #111827;
   --brand-secondary: #374151;
   --brand-accent: #315c7c;
+  --on-brand-primary: var(--bg);
 
   --success: #2f6f4e;
   --warning: #a56b1f;
@@ -36,6 +37,7 @@ html.dark {
   --brand-primary: #e5e7eb;
   --brand-secondary: #cbd5e1;
   --brand-accent: #7fa3bf;
+  --on-brand-primary: var(--bg);
 
   --success: #6aa889;
   --warning: #d5a35b;
